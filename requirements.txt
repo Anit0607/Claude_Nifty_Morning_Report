@@ -1,0 +1,20 @@
+# Core data / numerics
+pandas>=2.2
+numpy>=1.26
+pyyaml>=6.0
+python-dotenv>=1.0
+
+# Market data (historical, free)
+yfinance>=0.2.40
+
+# Models
+scikit-learn>=1.5
+xgboost>=2.1
+lightgbm>=4.5
+arch>=7.0          # EGARCH/TGARCH conditional volatility
+
+# HTTP (Dhan REST, Telegram Bot API, global cues)
+requests>=2.32
+
+# Optional: richer LLM narration/diagnosis (only used if ANTHROPIC_API_KEY is set)
+anthropic>=0.40

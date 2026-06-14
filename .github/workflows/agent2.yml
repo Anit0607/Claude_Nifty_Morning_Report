@@ -1,0 +1,54 @@
+name: Agent 2 — Reviewer / Auto-Healer
+
+# 20:00 IST = 14:30 UTC, Mon-Fri (after the session has fully settled).
+on:
+  schedule:
+    - cron: "30 14 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      force_improve:
+        description: "Force the champion/challenger loop to run"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: agent2
+  cancel-in-progress: false
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Agent 2
+        env:
+          DHAN_ACCESS_TOKEN: ${{ secrets.DHAN_ACCESS_TOKEN }}
+          DHAN_CLIENT_ID: ${{ secrets.DHAN_CLIENT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ "${{ inputs.force_improve }}" = "true" ]; then
+            python -m scripts.run_agent2 --force-improve
+          else
+            python -m scripts.run_agent2
+          fi
+
+      - name: Commit outcomes / metrics / promoted model
+        run: |
+          git config user.name "nifty-quant-bot"
+          git config user.email "actions@github.com"
+          git add data/logs/ data/models/ config/learned.yaml || true
+          git diff --cached --quiet || git commit -m "Agent 2: review $(date -u +%Y-%m-%d)"
+          git push

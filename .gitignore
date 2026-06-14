@@ -1,0 +1,20 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Data caches: daily OHLC/VIX are cheaply re-fetchable from yfinance, so ignore them.
+data/historical/*.csv
+data/historical/*.parquet
+# ...but KEEP the opening-range cache (6y of Dhan intraday — expensive to rebuild, needs token).
+!data/historical/opening_range.csv
+
+# OS
+.DS_Store
+Thumbs.db

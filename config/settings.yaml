@@ -1,0 +1,70 @@
+# Central configuration. Agent 2 tunes the values under `tunable:` via the
+# champion/challenger loop. Everything else is structural.
+
+market:
+  symbol_yf: "^NSEI"          # Nifty 50 on yfinance (historical)
+  vix_yf: "^INDIAVIX"         # India VIX on yfinance (historical)
+  dhan:
+    base_url: "https://api.dhan.co/v2"
+    nifty_security_id: 13      # NIFTY 50 index, segment IDX_I
+    vix_security_id: 21        # INDIA VIX, segment IDX_I
+    index_segment: "IDX_I"
+    underlying_seg: "IDX_I"    # for option-chain calls
+  timezone: "Asia/Kolkata"
+  open_time: "09:15"
+  snapshot_time: "09:20"      # Agent 1 fires here; uses 09:15-09:20 opening range
+  close_time: "15:30"
+  trading_days_per_year: 252
+
+data:
+  historical_years: 8
+  cache_dir: "data/historical"
+
+# ---- Scorecard: how "satisfactory" is quantified (weights sum to 1.0) ----
+scoring:
+  weights:
+    direction: 0.30
+    trade_pnl: 0.30
+    range_hit: 0.20
+    calibration: 0.15          # Brier score on Up/Down/Sideways
+    confidence_reliability: 0.05
+  satisfactory:
+    rolling_window: 20         # sessions
+    composite_threshold: 65    # 0-100
+    floors:                    # critical metrics must stay above these
+      direction: 0.50          # better than coin-flip
+      calibration: 0.55        # 1 - normalized_brier
+  # Sideways band: |close-open| <= sideways_pct of open => "Sideways"
+  sideways_pct: 0.0025         # 0.25%
+
+# ---- Tunable model parameters (Agent 2 may adjust; versioned) ----
+tunable:
+  range:
+    # expected daily move blend: weights over [vix_implied, garch, atr, yang_zhang]
+    blend_weights: [0.40, 0.25, 0.20, 0.15]
+    band_quantile: 0.80        # band covers ~this central probability mass
+  regime:
+    sideways_threshold_sigma: 0.35   # |expected move| < this*sigma => sideways lean
+  confidence:
+    agreement_weight: 0.5      # blend of model-certainty and signal-agreement
+
+# ---- Trade-plan persona parameters ----
+personas:
+  capital: 500000              # notional sizing base (INR)
+  risk_per_trade_pct: 0.01     # 1% of capital per trade
+  lot_size: 75                 # Nifty lot (update if exchange changes it)
+  non_directional_seller:
+    strike_width_atm_mult: 1.0 # strangle width as multiple of expected move
+    min_vix: 12                # avoid selling vol when too cheap
+  directional_seller:
+    otm_buffer_mult: 0.6       # sell strikes this * expected move OTM
+  option_buyer:
+    min_directional_prob: 0.58 # only buy when conviction high enough
+  futures_trader:
+    sl_atr_mult: 0.8
+    target_atr_mult: 1.5
+
+# ---- Model registry pointer ----
+models:
+  dir: "data/models"
+  active_version: null         # set by train_initial.py / champion-challenger

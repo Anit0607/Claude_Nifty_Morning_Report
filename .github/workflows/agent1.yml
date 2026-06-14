@@ -1,0 +1,47 @@
+name: Agent 1 — Pre-Market Predictor
+
+# 09:20 IST = 03:50 UTC. A couple minutes' grace so the 09:15-09:20 candle has closed.
+# GitHub cron is UTC and may run a few minutes late — that's fine (Agent 1 picks the
+# latest available session). Mon-Fri only; non-trading days are handled gracefully.
+on:
+  schedule:
+    - cron: "52 3 * * 1-5"
+  workflow_dispatch: {}
+
+# Allow the job to commit the prediction log back to the repo.
+permissions:
+  contents: write
+
+concurrency:
+  group: agent1
+  cancel-in-progress: false
+
+jobs:
+  predict:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Agent 1
+        env:
+          DHAN_ACCESS_TOKEN: ${{ secrets.DHAN_ACCESS_TOKEN }}
+          DHAN_CLIENT_ID: ${{ secrets.DHAN_CLIENT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python -m scripts.run_agent1
+
+      - name: Commit prediction log
+        run: |
+          git config user.name "nifty-quant-bot"
+          git config user.email "actions@github.com"
+          git add data/logs/ data/historical/opening_range.csv || true
+          git diff --cached --quiet || git commit -m "Agent 1: prediction $(date -u +%Y-%m-%d)"
+          git push
