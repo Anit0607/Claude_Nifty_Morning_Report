@@ -21,6 +21,7 @@ import pandas as pd
 
 from src.config import load_settings
 from src.data.dhan_client import DhanClient
+from src.data.intraday_history import update_opening_range_cache
 from src.delivery import telegram
 from src.improve import champion_challenger
 from src.improve.diagnose import diagnose
@@ -113,6 +114,13 @@ def _build_review(new: list[dict], j, findings: list[str], decision: dict | None
 
 def run(dry_run: bool = False, force_improve: bool = False) -> str:
     client = DhanClient()
+
+    # Keep the opening-range cache current so any retraining uses the latest sessions.
+    try:
+        update_opening_range_cache(client)
+    except Exception as exc:
+        print(f"[warn] OR cache update failed: {str(exc)[:120]}")
+
     outcomes, new = _score_new_outcomes(client)
     j = judge(outcomes)
     findings = diagnose(j.card) if j.card else []

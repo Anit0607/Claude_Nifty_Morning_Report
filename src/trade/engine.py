@@ -82,18 +82,22 @@ def build_trade_plans(
                   + (f" Anchored to OI walls {int(opt.put_wall)}/{int(opt.call_wall)}." if opt else ""),
     ))
 
-    # ---- 2. Directional Seller (sell the far OTM opposite side) ----
+    # ---- 2. Directional Seller (sell the OTM opposite side) ----
+    # Sell at the buffer strike for meaningful premium; only snap to an OI wall when that
+    # wall sits *near* the buffer strike (so we align to real support/resistance without
+    # chasing a far-OTM wall that collects almost no premium).
     buf = p["directional_seller"]["otm_buffer_mult"] * move_pts
+    snap = 0.5 * move_pts  # how close a wall must be to override the buffer strike
     if bullish:
         sell_k = _round_to(open_price - buf, step)
-        if opt:
-            sell_k = min(sell_k, opt.put_wall)
+        if opt and open_price >= opt.put_wall >= sell_k - snap:
+            sell_k = opt.put_wall   # strong support just below our strike -> sell there
         ds_summary = f"Sell {int(sell_k)} PE (bullish: collect premium below support)"
         ds_legs = [f"SELL {int(sell_k)} PE"]
     else:
         sell_k = _round_to(open_price + buf, step)
-        if opt:
-            sell_k = max(sell_k, opt.call_wall)
+        if opt and open_price <= opt.call_wall <= sell_k + snap:
+            sell_k = opt.call_wall  # strong resistance just above our strike -> sell there
         ds_summary = f"Sell {int(sell_k)} CE (bearish: collect premium above resistance)"
         ds_legs = [f"SELL {int(sell_k)} CE"]
     plans.append(TradePlan(

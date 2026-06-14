@@ -21,7 +21,8 @@ import pandas as pd
 from src.data.dhan_client import DhanClient
 from src.data.global_cues import fetch_global_cues
 from src.data.historical import load_training_frame
-from src.data.intraday_history import OR_FEATURE_COLS, build_opening_range_table
+from src.data.intraday_history import (OR_FEATURE_COLS, build_opening_range_table,
+                                        update_opening_range_cache)
 from src.features.builder import build_feature_frame
 from src.features.options import extract_option_features
 from src.features.volatility import atr
@@ -53,6 +54,12 @@ def _latest_session(client: DhanClient) -> tuple[pd.Timestamp, dict]:
 
 def run(dry_run: bool = False) -> str:
     client = DhanClient()
+
+    # --- keep the opening-range cache current (cheap, incremental) ---
+    try:
+        update_opening_range_cache(client)
+    except Exception as exc:
+        print(f"[warn] OR cache update failed: {str(exc)[:120]}")
 
     # --- live opening range / today's open ---
     target_date, orc = _latest_session(client)

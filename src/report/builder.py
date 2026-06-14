@@ -51,16 +51,20 @@ def build_report(
     L.append(f"   confidence {conf_range:.0f}/100  {_bar(conf_range)}")
     L.append("")
 
-    # 2. Close vs Open Direction
+    # 2. Close vs Open Direction (binary model: which side of the open)
     L.append("2️⃣ CLOSE vs OPEN DIRECTION")
-    L.append(f"   Bias: {bias}  |  P(close>open) = {p_up:.0%}")
+    L.append(f"   Bias: {bias}  |  P(up) {p_up:.0%} / P(down) {1 - p_up:.0%}")
     L.append(f"   Expected close-open: {exp_magnitude_pts:+,.0f} pts")
     L.append(f"   confidence {conf_direction:.0f}/100  {_bar(conf_direction)}")
     L.append("")
 
-    # 3. Probability Model
-    L.append("3️⃣ PROBABILITY MODEL")
-    L.append(f"   Up {p_up_reg:.0%}  | Down {p_down:.0%}  | Sideways {p_sideways:.0%}")
+    # 3. Probability Model — move *size* regime (decisive move vs flat)
+    L.append("3️⃣ PROBABILITY MODEL (move size)")
+    L.append(f"   Decisive Up {p_up_reg:.0%}  | Decisive Down {p_down:.0%}  | Flat/Range {p_sideways:.0%}")
+    L.append("   (decisive = |move| > 0.25%; the direction call above integrates these)")
+    # Flag when the two models disagree on sign — treat the call cautiously.
+    if (p_up >= 0.5) != (p_up_reg >= p_down):
+        L.append("   ⚠ direction & regime models diverge on sign — lower conviction")
     L.append(f"   confidence {conf_regime:.0f}/100  {_bar(conf_regime)}")
     L.append("")
 
