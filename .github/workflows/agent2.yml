@@ -1,9 +1,12 @@
 name: Agent 2 — Reviewer / Auto-Healer
 
 # 20:00 IST = 14:30 UTC, Mon-Fri (after the session has fully settled).
+# A backup slot 45 min later (20:45 IST) covers a missed/delayed primary run; the
+# "already reviewed today" guard in run_agent2 prevents a duplicate send.
 on:
   schedule:
     - cron: "30 14 * * 1-5"
+    - cron: "15 15 * * 1-5"
   workflow_dispatch:
     inputs:
       force_improve:

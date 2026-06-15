@@ -28,7 +28,21 @@ from src.improve.diagnose import diagnose
 from src.improve.judge import judge
 from src.models.registry import get_active_version
 from src.scoring.review import score_prediction
-from src.storage.logs import (OUTCOMES, PREDICTIONS, log_metrics, log_outcome, read_jsonl)
+from src.storage.logs import (METRICS, OUTCOMES, PREDICTIONS, log_metrics, log_outcome,
+                              read_jsonl)
+
+
+def _ist_today() -> str:
+    import datetime as dt
+    return (dt.datetime.utcnow() + dt.timedelta(hours=5, minutes=30)).strftime("%Y-%m-%d")
+
+
+def _already_reviewed_today() -> bool:
+    """True if a review was already sent today (lets a backup run skip cleanly)."""
+    m = read_jsonl(METRICS)
+    if m.empty or "type" not in m.columns or "ist_date" not in m.columns:
+        return False
+    return bool(((m["type"] == "review_sent") & (m["ist_date"] == _ist_today())).any())
 
 
 def _fetch_actual(client: DhanClient, date_str: str) -> dict | None:
@@ -113,35 +127,75 @@ def _build_review(new: list[dict], j, findings: list[str], decision: dict | None
 
 
 def run(dry_run: bool = False, force_improve: bool = False) -> str:
-    client = DhanClient()
+    # Backup-run guard: if the primary already sent today's review, skip cleanly.
+    if not dry_run and not force_improve and _already_reviewed_today():
+        print("[Agent 2] already reviewed today — skipping (backup run).")
+        return ""
 
-    # Keep the opening-range cache current so any retraining uses the latest sessions.
+    # Every external step is defensive: a single failure must never stop the review
+    # from being delivered. Worst case we send a review noting what was unavailable.
+    notes: list[str] = []
+
+    client = None
     try:
-        update_opening_range_cache(client)
+        client = DhanClient()
     except Exception as exc:
-        print(f"[warn] OR cache update failed: {str(exc)[:120]}")
+        notes.append("Dhan client unavailable (token/secret?) — review from existing logs")
+        print(f"[warn] Dhan init failed: {str(exc)[:150]}")
 
-    outcomes, new = _score_new_outcomes(client)
+    new: list[dict] = []
+    if client is not None:
+        try:
+            update_opening_range_cache(client)
+        except Exception as exc:
+            print(f"[warn] OR cache update failed: {str(exc)[:120]}")
+        try:
+            outcomes, new = _score_new_outcomes(client)
+        except Exception as exc:
+            notes.append("could not fetch today's actuals from Dhan")
+            print(f"[warn] scoring failed: {str(exc)[:150]}")
+            outcomes = read_jsonl(OUTCOMES)
+    else:
+        outcomes = read_jsonl(OUTCOMES)
+
     j = judge(outcomes)
     findings = diagnose(j.card) if j.card else []
 
     decision = None
     if j.should_improve or force_improve:
         print("[running champion/challenger improvement loop...]")
-        decision = champion_challenger.try_improve()
-        log_metrics({"type": "improvement", **decision})
+        try:
+            decision = champion_challenger.try_improve()
+            log_metrics({"type": "improvement", **decision})
+        except Exception as exc:
+            notes.append("improvement loop errored (model unchanged)")
+            print(f"[warn] improvement failed: {str(exc)[:150]}")
 
     if j.card is not None:
-        log_metrics({"type": "scorecard", "n": j.card.n, "composite": j.card.composite,
-                     "direction": j.card.direction, "range_hit": j.card.range_hit,
-                     "calibration": j.card.calibration, "trade_pnl": j.card.trade_pnl,
-                     "satisfactory": j.card.satisfactory})
+        try:
+            log_metrics({"type": "scorecard", "n": j.card.n, "composite": j.card.composite,
+                         "direction": j.card.direction, "range_hit": j.card.range_hit,
+                         "calibration": j.card.calibration, "trade_pnl": j.card.trade_pnl,
+                         "satisfactory": j.card.satisfactory})
+        except Exception:
+            pass
 
     report = _build_review(new, j, findings, decision)
+    if notes:
+        report += "\n\n" + "\n".join(f"• note: {n}" for n in notes)
+
+    sent = False
     if not dry_run and telegram.is_configured():
         telegram.send_message(report)
+        sent = True
         print("[sent to Telegram]")
     print("\n" + report)
+
+    if sent:  # record so a backup run won't double-send
+        try:
+            log_metrics({"type": "review_sent", "ist_date": _ist_today()})
+        except Exception:
+            pass
     return report
 
 

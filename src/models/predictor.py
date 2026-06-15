@@ -7,9 +7,10 @@ behave identically — no train/serve skew.
 """
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
-from src.features.builder import FEATURE_COLS
+from src.config import load_settings
 from src.models.confidence import (
     direction_confidence,
     overall_confidence,
@@ -42,6 +43,20 @@ def predict_outputs(bundle: ModelBundle, frame: pd.DataFrame) -> pd.DataFrame:
     out["pred_high"] = band["pred_high"]
     out["pred_low"] = band["pred_low"]
     out["expected_move"] = band["expected_move"]
+
+    # Asymmetric tilt: tighten the COUNTER-trend side of the band, scaled by directional
+    # conviction. On a bearish call we expect little upside, so pull the high in; on a
+    # bullish call, pull the low in. The trend side keeps full width.
+    tilt_max = float(load_settings()["tunable"]["range"].get("asym_tilt", 0.0))
+    if tilt_max > 0:
+        open_ = frame["open"].to_numpy(dtype=float)
+        pu = out["p_up"].to_numpy(dtype=float)
+        tilt = tilt_max * (np.abs(pu - 0.5) * 2.0)            # 0..tilt_max by conviction
+        ph, pl = out["pred_high"].to_numpy(dtype=float), out["pred_low"].to_numpy(dtype=float)
+        bearish = pu < 0.5
+        ph = np.where(bearish, open_ + (ph - open_) * (1 - tilt), ph)   # tighten upside
+        pl = np.where(~bearish, open_ - (open_ - pl) * (1 - tilt), pl)  # tighten downside
+        out["pred_high"], out["pred_low"] = ph, pl
 
     # Confidence (row-wise; small N so a loop is fine and keeps the logic readable).
     conf_dir, conf_reg, conf_rng, conf_all = [], [], [], []

@@ -43,6 +43,8 @@ tunable:
     # expected daily move blend: weights over [vix_implied, garch, atr, yang_zhang]
     blend_weights: [0.40, 0.25, 0.20, 0.15]
     band_quantile: 0.80        # band covers ~this central probability mass
+    asym_tilt: 0.30            # tighten the counter-trend side of the band by up to this
+                               # fraction, scaled by directional conviction (0 = symmetric)
   regime:
     sideways_threshold_sigma: 0.35   # |expected move| < this*sigma => sideways lean
   confidence:
