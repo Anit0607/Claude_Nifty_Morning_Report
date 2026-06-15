@@ -168,4 +168,14 @@ if __name__ == "__main__":
         pass
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="never send; print report")
-    run(**{"dry_run": ap.parse_args().dry_run})
+    args = ap.parse_args()
+    try:
+        run(dry_run=args.dry_run)
+    except Exception as exc:
+        # Never fail silently — alert on Telegram so a missing morning report is noticed.
+        try:
+            if telegram.is_configured():
+                telegram.send_message(f"⚠️ Agent 1 FAILED: {type(exc).__name__}: {str(exc)[:300]}")
+        except Exception:
+            pass
+        raise

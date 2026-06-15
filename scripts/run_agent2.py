@@ -155,4 +155,13 @@ if __name__ == "__main__":
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--force-improve", action="store_true")
     a = ap.parse_args()
-    run(dry_run=a.dry_run, force_improve=a.force_improve)
+    try:
+        run(dry_run=a.dry_run, force_improve=a.force_improve)
+    except Exception as exc:
+        # Never fail silently — alert on Telegram so a missing evening review is noticed.
+        try:
+            if telegram.is_configured():
+                telegram.send_message(f"⚠️ Agent 2 FAILED: {type(exc).__name__}: {str(exc)[:300]}")
+        except Exception:
+            pass
+        raise

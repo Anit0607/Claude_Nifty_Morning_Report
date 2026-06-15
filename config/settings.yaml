@@ -53,14 +53,31 @@ personas:
   capital: 500000              # notional sizing base (INR)
   risk_per_trade_pct: 0.01     # 1% of capital per trade
   lot_size: 75                 # Nifty lot (update if exchange changes it)
+  # --- Option SELLERS: POP-oriented, premium-based stops (user preference) ---
+  # Stop when premium rises sl_premium_pct; take profit at target_premium_pct decay.
+  # 0.55 / 0.55 == a 1:1 risk:reward on premium. Trailing locks profit once in the money.
   non_directional_seller:
     strike_width_atm_mult: 1.0 # strangle width as multiple of expected move
     min_vix: 12                # avoid selling vol when too cheap
+    sl_premium_pct: 0.55
+    target_premium_pct: 0.55   # 1:1
+    trail: true
   directional_seller:
     otm_buffer_mult: 0.6       # sell strikes this * expected move OTM
+    sl_premium_pct: 0.55
+    target_premium_pct: 0.55   # 1:1 (POP-oriented; beats strike-breach exit)
+    trail: true
+  # --- Option BUYER: tight premium SL, asymmetric target ---
   option_buyer:
     min_directional_prob: 0.58 # only buy when conviction high enough
+    sl_premium_pct: 0.40       # stop if premium falls this %
+    target_rr: 2.0             # 1:2
+  # --- FUTURES: hard points SL (user max risk) + trailing, NOT wide ATR brackets ---
   futures_trader:
+    sl_points: 50              # hard stop in index points (user's max risk per trade)
+    target_rr: 1.0             # first target 1:1; then trail
+    trail_step: 50             # trail SL by this many pts per equal favourable move
+    # ATR params below are used only by the backtest/scorecard trade proxy, not live plans.
     sl_atr_mult: 0.8
     target_atr_mult: 1.5
 

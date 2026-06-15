@@ -32,6 +32,22 @@ class OptionFeatures:
     atm_pe_ltp: float
     expiry: str
     strike_step: float
+    ce_ltp: dict[float, float]   # strike -> call last price
+    pe_ltp: dict[float, float]   # strike -> put last price
+
+    def _nearest(self, mapping: dict[float, float], strike: float) -> float | None:
+        if not mapping:
+            return None
+        if strike in mapping:
+            return mapping[strike]
+        k = min(mapping.keys(), key=lambda s: abs(s - strike))
+        return mapping[k]
+
+    def call_premium(self, strike: float) -> float | None:
+        return self._nearest(self.ce_ltp, strike)
+
+    def put_premium(self, strike: float) -> float | None:
+        return self._nearest(self.pe_ltp, strike)
 
 
 def _normalize(oc_response: dict) -> tuple[float, dict]:
@@ -58,6 +74,13 @@ def _oi(leg: dict) -> float:
 def _iv(leg: dict) -> float:
     try:
         return float(leg.get("implied_volatility") or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _ltp(leg: dict) -> float:
+    try:
+        return float(leg.get("last_price") or 0.0)
     except (TypeError, ValueError):
         return 0.0
 
@@ -100,11 +123,13 @@ def extract_option_features(oc_response: dict, expiry: str) -> OptionFeatures:
     otm_call_k = min(strikes, key=lambda s: abs(s - spot * 1.02))
     iv_skew = _iv(chain[otm_put_k].get("pe", {})) - _iv(chain[otm_call_k].get("ce", {}))
 
+    ce_ltp = {k: _ltp(chain[k].get("ce", {})) for k in strikes}
+    pe_ltp = {k: _ltp(chain[k].get("pe", {})) for k in strikes}
+
     return OptionFeatures(
         spot=spot, atm_strike=atm, pcr=round(pcr, 3), max_pain=_max_pain(chain),
         call_wall=call_wall, put_wall=put_wall, atm_iv=round(atm_iv, 2),
         iv_skew=round(iv_skew, 2),
-        atm_ce_ltp=float(atm_ce.get("last_price") or 0.0),
-        atm_pe_ltp=float(atm_pe.get("last_price") or 0.0),
-        expiry=expiry, strike_step=step,
+        atm_ce_ltp=_ltp(atm_ce), atm_pe_ltp=_ltp(atm_pe),
+        expiry=expiry, strike_step=step, ce_ltp=ce_ltp, pe_ltp=pe_ltp,
     )
