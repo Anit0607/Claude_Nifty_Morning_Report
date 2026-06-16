@@ -42,7 +42,8 @@ tunable:
   range:
     # expected daily move blend: weights over [vix_implied, garch, atr, yang_zhang]
     blend_weights: [0.40, 0.25, 0.20, 0.15]
-    band_quantile: 0.80        # band covers ~this central probability mass
+    band_quantile: 0.75        # band covers ~this central probability mass (tightened from
+                               # 0.80 per user feedback; lower = tighter band but escaped more)
     asym_tilt: 0.30            # tighten the counter-trend side of the band by up to this
                                # fraction, scaled by directional conviction (0 = symmetric)
   regime:
@@ -60,7 +61,7 @@ personas:
   # 0.55 / 0.55 == a 1:1 risk:reward on premium. Trailing locks profit once in the money.
   non_directional_seller:
     strike_width_atm_mult: 1.0 # strangle width as multiple of expected move
-    min_vix: 12                # avoid selling vol when too cheap
+    min_vix: 10                # avoid selling vol when too cheap (ATM IV floor)
     sl_premium_pct: 0.55
     target_premium_pct: 0.55   # 1:1
     trail: true

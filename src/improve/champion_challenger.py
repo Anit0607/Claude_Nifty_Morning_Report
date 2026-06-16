@@ -29,7 +29,9 @@ _CHALLENGER_REFIT_EVERY = 63      # coarser refit for faster candidate evaluatio
 
 
 def _candidate_overrides() -> list[dict]:
-    return [{"tunable": {"range": {"band_quantile": q}}} for q in (0.75, 0.80, 0.85, 0.90)]
+    # Wider grid (incl. tighter bands) so the loop can move the range either way.
+    return [{"tunable": {"range": {"band_quantile": q}}}
+            for q in (0.60, 0.65, 0.70, 0.75, 0.80, 0.85)]
 
 
 def _evaluate(frame, feature_cols, overrides) -> float:

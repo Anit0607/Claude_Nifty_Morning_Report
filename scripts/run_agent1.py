@@ -52,6 +52,39 @@ def _latest_session(client: DhanClient) -> tuple[pd.Timestamp, dict]:
     return date, {"open": float(last["open"]), **or_row}
 
 
+def _daily_frame(client: DhanClient, target_date: pd.Timestamp) -> pd.DataFrame:
+    """Authoritative recent daily frame for live features.
+
+    yfinance is unreliable on cloud/CI IPs (Yahoo throttles datacentre ranges → stale or
+    missing rows, which corrupts prev_close/gap). So we source daily OHLC + India VIX from
+    Dhan, which is reliable on the runner. Falls back to yfinance only if Dhan fails.
+    """
+    from src.data.historical import load_training_frame
+    try:
+        start = (target_date - pd.Timedelta(days=1100)).date().isoformat()
+        end = target_date.date().isoformat()
+        nifty = client.daily_history(start, end)
+        nifty.index = pd.DatetimeIndex(nifty.index).normalize()
+        df = nifty[["open", "high", "low", "close", "volume"]].copy()
+        try:
+            vix = client.daily_history(start, end, security_id=client.cfg["vix_security_id"])
+            vix.index = pd.DatetimeIndex(vix.index).normalize()
+            df["vix"] = vix["close"].reindex(df.index).ffill()
+        except Exception:
+            df["vix"] = float("nan")
+        if df["vix"].isna().all():  # VIX from Dhan failed -> borrow yfinance VIX history
+            df["vix"] = load_training_frame()["vix"].reindex(df.index).ffill()
+        df = df[~df.index.duplicated(keep="last")].sort_index().dropna(
+            subset=["open", "high", "low", "close"])
+        if len(df) < 300:
+            raise RuntimeError(f"insufficient Dhan daily history ({len(df)} rows)")
+        print(f"[daily] Dhan daily frame: {len(df)} sessions through {df.index.max().date()}")
+        return df
+    except Exception as exc:
+        print(f"[warn] Dhan daily frame failed ({str(exc)[:100]}); falling back to yfinance")
+        return load_training_frame()
+
+
 def run(dry_run: bool = False) -> str:
     client = DhanClient()
 
@@ -72,8 +105,8 @@ def run(dry_run: bool = False) -> str:
     except Exception:
         live_vix = None
 
-    # --- assemble daily frame: real history strictly before target, + synthetic today row ---
-    daily = load_training_frame()
+    # --- assemble daily frame (Dhan-sourced; yfinance fallback) + synthetic today row ---
+    daily = _daily_frame(client, target_date)
     prior = daily[daily.index < target_date]
     vix_val = live_vix if live_vix is not None else float(prior["vix"].iloc[-1])
     today_row = pd.DataFrame({

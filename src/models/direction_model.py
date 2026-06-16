@@ -63,5 +63,11 @@ class DirectionModel:
         return self.clf.predict_proba(X)[:, 1]
 
     def expected_magnitude(self, p_up: float) -> float:
-        """Blend the up/down conditional means by probability -> expected (close-open)/open."""
-        return p_up * self._mean_ret_up + (1.0 - p_up) * self._mean_ret_dn
+        """Expected (close-open)/open **in the predicted direction**.
+
+        Returns the average up-move when the call is bullish (p_up>=0.5) and the average
+        down-move when bearish — so the sign always agrees with the directional call.
+        (The old probability-weighted blend could flip sign on low-conviction days, which
+        is confusing: "Bullish" but a negative expected move.)
+        """
+        return self._mean_ret_up if p_up >= 0.5 else self._mean_ret_dn

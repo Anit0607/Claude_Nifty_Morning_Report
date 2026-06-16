@@ -27,16 +27,23 @@ class GlobalCues:
         return " | ".join(live) if live else "global cues unavailable"
 
 
-def _last_change_pct(ticker: str) -> float | None:
-    try:
-        import yfinance as yf
-        hist = yf.download(ticker, period="5d", interval="1d", auto_adjust=False, progress=False)
-        if hist is None or len(hist) < 2:
-            return None
-        closes = hist["Close"].squeeze()
-        return round(float((closes.iloc[-1] / closes.iloc[-2] - 1.0) * 100), 2)
-    except Exception:
-        return None
+def _last_change_pct(ticker: str, attempts: int = 3) -> float | None:
+    """Last daily % change for a ticker. yfinance is throttled on cloud IPs, so retry a
+    few times; returns None if still unavailable (these cues are best-effort/cosmetic)."""
+    import time
+
+    import yfinance as yf
+    for i in range(attempts):
+        try:
+            hist = yf.download(ticker, period="5d", interval="1d",
+                               auto_adjust=False, progress=False)
+            if hist is not None and len(hist) >= 2:
+                closes = hist["Close"].squeeze()
+                return round(float((closes.iloc[-1] / closes.iloc[-2] - 1.0) * 100), 2)
+        except Exception:
+            pass
+        time.sleep(1.5 * (i + 1))
+    return None
 
 
 def fetch_global_cues() -> GlobalCues:

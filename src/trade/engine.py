@@ -74,10 +74,14 @@ def build_trade_plans(
             combined = cp + pp
     sl_line, tgt_line = _seller_risk(combined, nds["sl_premium_pct"],
                                      nds["target_premium_pct"], nds["trail"], per_side=True)
+    # Take the strangle when sideways is dominant OR conviction is low (a low-conviction
+    # day == range-bound, which is exactly when premium-selling shines). This ensures the
+    # user gets an actionable plan on quiet days rather than four SKIPs.
+    range_day = (p_sideways >= max(p_down, p_up_reg) * 0.9) or (conviction < 0.15)
     plans.append(TradePlan(
         persona="Intraday Option Non-Directional Seller",
         bias="Neutral / Range",
-        take_trade=bool(iv_ok and p_sideways >= max(p_down, p_up_reg) * 0.9),
+        take_trade=bool(iv_ok and range_day),
         confidence=nds_conf,
         summary=f"Short strangle: sell {int(call_k)}CE + sell {int(put_k)}PE"
                 + (f" (premium ~{combined:.1f})" if combined else ""),
