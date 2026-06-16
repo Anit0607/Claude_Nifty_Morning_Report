@@ -39,6 +39,7 @@ jobs:
         run: python -m scripts.run_agent1
 
       - name: Commit prediction log
+        if: always()   # persist the prediction even if the run step exited nonzero
         run: |
           git config user.name "nifty-quant-bot"
           git config user.email "actions@github.com"

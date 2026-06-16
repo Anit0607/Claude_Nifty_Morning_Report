@@ -49,6 +49,7 @@ jobs:
           fi
 
       - name: Commit outcomes / metrics / promoted model
+        if: always()   # persist logs/metrics even if the run step exited nonzero
         run: |
           git config user.name "nifty-quant-bot"
           git config user.email "actions@github.com"
