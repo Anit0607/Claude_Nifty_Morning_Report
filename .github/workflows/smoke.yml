@@ -1,0 +1,23 @@
+name: Smoke Test
+
+# Runs the full Agent 1 pipeline against MOCK Dhan data (no secrets needed) on every push
+# and PR, so schema/strike/KeyError regressions are caught here instead of on a live morning.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run smoke test
+        run: python -m scripts.smoke_test
