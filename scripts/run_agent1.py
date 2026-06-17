@@ -76,6 +76,9 @@ def _daily_frame(client: DhanClient, target_date: pd.Timestamp) -> pd.DataFrame:
             df["vix"] = load_training_frame()["vix"].reindex(df.index).ffill()
         df = df[~df.index.duplicated(keep="last")].sort_index().dropna(
             subset=["open", "high", "low", "close"])
+        # Match load_training_frame's schema — downstream (ATR, gap, VIX features) needs these.
+        df["prev_close"] = df["close"].shift(1)
+        df["prev_vix"] = df["vix"].shift(1)
         if len(df) < 300:
             raise RuntimeError(f"insufficient Dhan daily history ({len(df)} rows)")
         print(f"[daily] Dhan daily frame: {len(df)} sessions through {df.index.max().date()}")
