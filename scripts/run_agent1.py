@@ -89,6 +89,12 @@ def _daily_frame(client: DhanClient, target_date: pd.Timestamp) -> pd.DataFrame:
 
 
 def run(dry_run: bool = False) -> str:
+    import datetime as _dt
+    _now_ist = _dt.datetime.utcnow() + _dt.timedelta(hours=5, minutes=30)
+    as_of = _now_ist.strftime("%Y-%m-%d %H:%M") + " IST"
+    _open = _now_ist.replace(hour=9, minute=20, second=0, microsecond=0)
+    if _now_ist > _open + _dt.timedelta(minutes=20):
+        as_of += "  ⚠️ LATE run — levels reflect this time, NOT the 9:20 open"
     client = DhanClient()
 
     # --- keep the opening-range cache current (cheap, incremental) ---
@@ -163,7 +169,7 @@ def run(dry_run: bool = False) -> str:
         p_up_reg=float(preds["p_up_reg"]), conf_direction=float(preds["conf_direction"]),
         conf_regime=float(preds["conf_regime"]), conf_range=float(preds["conf_range"]),
         conf_overall=float(preds["conf_overall"]), plans=plans, opt=opt,
-        global_summary=fetch_global_cues().summary(),
+        global_summary=fetch_global_cues().summary(), as_of=as_of,
     )
 
     # --- log prediction (skip on dry-run; one record per date) ---

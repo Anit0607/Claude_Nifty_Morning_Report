@@ -62,9 +62,12 @@ def build_trade_plans(
     width = nds["strike_width_atm_mult"] * move_pts
     call_k = _round_to(open_price + width, step)
     put_k = _round_to(open_price - width, step)
-    if opt:  # widen to the OI walls if they sit further out (safer shorts)
-        call_k = max(call_k, opt.call_wall)
-        put_k = min(put_k, opt.put_wall)
+    snap_nds = 0.5 * move_pts  # only align to an OI wall when it sits near the buffer strike
+    if opt:
+        if call_k <= opt.call_wall <= call_k + snap_nds:   # resistance just above -> sell there
+            call_k = opt.call_wall
+        if put_k - snap_nds <= opt.put_wall <= put_k:       # support just below -> sell there
+            put_k = opt.put_wall
     iv_ok = (opt.atm_iv if opt else 99) >= nds["min_vix"]
     nds_conf = round(0.5 * conf_range + 0.5 * min(99.0, 50 + 100 * (p_sideways - 1 / 3)), 1)
     combined = None

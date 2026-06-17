@@ -25,24 +25,28 @@ def build_report(
     p_down: float, p_sideways: float, p_up_reg: float,
     conf_direction: float, conf_regime: float, conf_range: float, conf_overall: float,
     plans: list[TradePlan], opt: OptionFeatures | None, global_summary: str,
+    as_of: str = "",
 ) -> str:
     L: list[str] = []
     L.append(f"📊 NIFTY 50 — Pre-Market Outlook ({mode})")
     L.append(f"🗓️ {date_str}")
+    if as_of:
+        L.append(f"⏰ Snapshot: {as_of}")
+        L.append("   (option premiums & levels are as of this snapshot time)")
     L.append("")
 
     # Snapshot
     L.append("— MARKET SNAPSHOT —")
-    L.append(f"Open: {open_price:,.0f}  | Prev close: {prev_close:,.0f}  | Gap: {gap_pct:+.2%}")
+    L.append(f"Open (9:15): {open_price:,.0f}  | Prev close: {prev_close:,.0f}  | Gap: {gap_pct:+.2%}")
     if india_vix is not None:
         L.append(f"India VIX: {india_vix:.2f}")
     if or_ret is not None:
         L.append(f"Opening range (9:15-9:20): move {or_ret:+.2%}, range {or_range:.2%}")
     L.append(f"Global: {global_summary}")
     if opt:
-        L.append(f"Options (exp {opt.expiry}): PCR {opt.pcr} | MaxPain {int(opt.max_pain)} "
-                 f"| Put wall {int(opt.put_wall)} | Call wall {int(opt.call_wall)} "
-                 f"| ATM IV {opt.atm_iv}% | Skew {opt.iv_skew:+.1f}")
+        L.append(f"Options (exp {opt.expiry}, as of snapshot): PCR {opt.pcr} "
+                 f"| MaxPain {int(opt.max_pain)} | Put wall {int(opt.put_wall)} "
+                 f"| Call wall {int(opt.call_wall)} | ATM IV {opt.atm_iv}% | Skew {opt.iv_skew:+.1f}")
     L.append("")
 
     # 1. Expected Day Range
