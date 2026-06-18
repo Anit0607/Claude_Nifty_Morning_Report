@@ -57,8 +57,12 @@ def build_report(
 
     # 2. Close vs Open Direction (binary model: which side of the open)
     L.append("2️⃣ CLOSE vs OPEN DIRECTION")
-    L.append(f"   Bias: {bias}  |  P(up) {p_up:.0%} / P(down) {1 - p_up:.0%}")
-    L.append(f"   Expected close-open: {exp_magnitude_pts:+,.0f} pts")
+    if abs(p_up - 0.5) < 0.075:   # ~coin flip: don't dress it up as a confident call
+        L.append(f"   No clear directional edge — P(up) {p_up:.0%} / P(down) {1 - p_up:.0%} (≈coin flip)")
+        L.append("   Low conviction → directional trades stand aside; favour the range/seller plan.")
+    else:
+        L.append(f"   Bias: {bias}  |  P(up) {p_up:.0%} / P(down) {1 - p_up:.0%}")
+        L.append(f"   Expected close-open: {exp_magnitude_pts:+,.0f} pts (typical move in this direction)")
     L.append(f"   confidence {conf_direction:.0f}/100  {_bar(conf_direction)}")
     L.append("")
 
