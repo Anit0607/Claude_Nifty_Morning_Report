@@ -57,5 +57,10 @@ jobs:
           git config user.name "nifty-quant-bot"
           git config user.email "actions@github.com"
           git add data/logs/ data/historical/opening_range.csv || true
-          git diff --cached --quiet || git commit -m "Agent 1: prediction $(date -u +%Y-%m-%d)"
-          git push
+          if git diff --cached --quiet; then echo "nothing to commit"; exit 0; fi
+          git commit -m "Agent 1: prediction $(date -u +%Y-%m-%d)"
+          for i in 1 2 3 4 5; do
+            git pull --rebase --autostash origin main && git push && exit 0
+            echo "push race, retry $i"; sleep $((RANDOM % 5 + 3))
+          done
+          echo "push failed after retries"; exit 1
