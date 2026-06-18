@@ -6,7 +6,12 @@ name: Agent 1 — Pre-Market Predictor
 on:
   schedule:
     - cron: "52 3 * * 1-5"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Re-send even if already reported today (manual testing)"
+        type: boolean
+        default: false
 
 # Allow the job to commit the prediction log back to the repo.
 permissions:
@@ -39,7 +44,12 @@ jobs:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
-        run: python -m scripts.run_agent1
+        run: |
+          if [ "${{ inputs.force }}" = "true" ]; then
+            python -m scripts.run_agent1 --force
+          else
+            python -m scripts.run_agent1
+          fi
 
       - name: Commit prediction log
         if: always()   # persist the prediction even if the run step exited nonzero

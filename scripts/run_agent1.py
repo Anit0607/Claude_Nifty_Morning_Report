@@ -88,7 +88,7 @@ def _daily_frame(client: DhanClient, target_date: pd.Timestamp) -> pd.DataFrame:
         return load_training_frame()
 
 
-def run(dry_run: bool = False) -> str:
+def run(dry_run: bool = False, force: bool = False) -> str:
     import datetime as _dt
     _now_ist = _dt.datetime.utcnow() + _dt.timedelta(hours=5, minutes=30)
     as_of = _now_ist.strftime("%Y-%m-%d %H:%M") + " IST"
@@ -109,10 +109,12 @@ def run(dry_run: bool = False) -> str:
 
     # Backup-run guard: if this session was already reported (e.g. the punctual external
     # trigger ran at 9:22), skip so a late GitHub-scheduled run can't re-send a stale report.
-    if not dry_run:
+    # --force bypasses it for manual testing.
+    if not dry_run and not force:
         _existing = read_jsonl(PREDICTIONS)
         if not _existing.empty and str(target_date.date()) in set(_existing["date"]):
-            print(f"[Agent 1] {target_date.date()} already reported — skipping (backup run).")
+            print(f"[Agent 1] {target_date.date()} already reported — skipping (backup run). "
+                  f"Use --force to re-send.")
             return ""
 
     # --- live VIX (best-effort) ---
@@ -212,9 +214,10 @@ if __name__ == "__main__":
         pass
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="never send; print report")
+    ap.add_argument("--force", action="store_true", help="re-send even if already reported today")
     args = ap.parse_args()
     try:
-        run(dry_run=args.dry_run)
+        run(dry_run=args.dry_run, force=args.force)
     except Exception as exc:
         # Never fail silently — alert so a missing morning report is noticed.
         try:
