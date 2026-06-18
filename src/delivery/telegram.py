@@ -70,3 +70,8 @@ def send_message(text: str) -> bool:
     for chunk in _chunks(text):
         ok = _send_chunk(url, chat_id, chunk) and ok
     return ok
+
+
+def send(subject: str, body: str) -> bool:
+    """Uniform channel interface used by the dispatcher (Telegram has no subject line)."""
+    return send_message(f"{subject}\n\n{body}" if subject else body)

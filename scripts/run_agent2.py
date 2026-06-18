@@ -22,7 +22,7 @@ import pandas as pd
 from src.config import load_settings
 from src.data.dhan_client import DhanClient
 from src.data.intraday_history import update_opening_range_cache
-from src.delivery import telegram
+from src.delivery import dispatch
 from src.improve import champion_challenger
 from src.improve.diagnose import diagnose
 from src.improve.judge import judge
@@ -185,10 +185,8 @@ def run(dry_run: bool = False, force_improve: bool = False) -> str:
         report += "\n\n" + "\n".join(f"• note: {n}" for n in notes)
 
     sent = False
-    if not dry_run and telegram.is_configured():
-        telegram.send_message(report)
-        sent = True
-        print("[sent to Telegram]")
+    if not dry_run and dispatch.is_configured():
+        sent = dispatch.send(report, subject="NIFTY Quant — Evening Review")
     print("\n" + report)
 
     if sent:  # record so a backup run won't double-send
@@ -214,8 +212,7 @@ if __name__ == "__main__":
     except Exception as exc:
         # Never fail silently — alert on Telegram so a missing evening review is noticed.
         try:
-            if telegram.is_configured():
-                telegram.send_message(f"⚠️ Agent 2 FAILED: {type(exc).__name__}: {str(exc)[:300]}")
+            dispatch.send(f"{type(exc).__name__}: {str(exc)[:300]}", subject="⚠️ Agent 2 FAILED")
         except Exception:
             pass
         raise

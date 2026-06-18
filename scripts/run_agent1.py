@@ -31,7 +31,7 @@ from src.models.registry import load_bundle, get_active_version
 from src.report.builder import build_report
 from src.storage.logs import PREDICTIONS, log_prediction, read_jsonl
 from src.trade.engine import build_trade_plans
-from src.delivery import telegram
+from src.delivery import dispatch
 
 
 def _latest_session(client: DhanClient) -> tuple[pd.Timestamp, dict]:
@@ -196,12 +196,10 @@ def run(dry_run: bool = False) -> str:
     })
 
     # --- deliver ---
-    if not dry_run and telegram.is_configured():
-        telegram.send_message(report)
-        print("[sent to Telegram]")
-    else:
-        if not dry_run:
-            print("[telegram not configured — printing only]")
+    if not dry_run and dispatch.is_configured():
+        dispatch.send(report, subject=f"NIFTY Pre-Market Outlook — {target_date.date()}")
+    elif not dry_run:
+        print("[no delivery channel configured — printing only]")
     print("\n" + report)
     return report
 
@@ -218,10 +216,9 @@ if __name__ == "__main__":
     try:
         run(dry_run=args.dry_run)
     except Exception as exc:
-        # Never fail silently — alert on Telegram so a missing morning report is noticed.
+        # Never fail silently — alert so a missing morning report is noticed.
         try:
-            if telegram.is_configured():
-                telegram.send_message(f"⚠️ Agent 1 FAILED: {type(exc).__name__}: {str(exc)[:300]}")
+            dispatch.send(f"{type(exc).__name__}: {str(exc)[:300]}", subject="⚠️ Agent 1 FAILED")
         except Exception:
             pass
         raise
