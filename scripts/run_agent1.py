@@ -107,6 +107,14 @@ def run(dry_run: bool = False) -> str:
     target_date, orc = _latest_session(client)
     open_price = orc["open"]
 
+    # Backup-run guard: if this session was already reported (e.g. the punctual external
+    # trigger ran at 9:22), skip so a late GitHub-scheduled run can't re-send a stale report.
+    if not dry_run:
+        _existing = read_jsonl(PREDICTIONS)
+        if not _existing.empty and str(target_date.date()) in set(_existing["date"]):
+            print(f"[Agent 1] {target_date.date()} already reported — skipping (backup run).")
+            return ""
+
     # --- live VIX (best-effort) ---
     try:
         ltp = client.ltp()["data"]["IDX_I"]
@@ -172,13 +180,9 @@ def run(dry_run: bool = False) -> str:
         global_summary=fetch_global_cues().summary(), as_of=as_of,
     )
 
-    # --- log prediction (skip on dry-run; one record per date) ---
-    existing = read_jsonl(PREDICTIONS)
-    already = (not existing.empty) and (str(target_date.date()) in set(existing["date"]))
+    # --- log prediction (skip on dry-run; dedup handled by the early backup guard) ---
     if dry_run:
         print("[dry-run — prediction not logged]")
-    elif already:
-        print(f"[prediction for {target_date.date()} already logged — not duplicating]")
     else:
         log_prediction({
         "date": str(target_date.date()), "model_version": get_active_version(),
