@@ -59,7 +59,10 @@ def build_report(
     L.append("2️⃣ CLOSE vs OPEN DIRECTION")
     if abs(p_up - 0.5) < 0.075:   # ~coin flip: don't dress it up as a confident call
         L.append(f"   No clear directional edge — P(up) {p_up:.0%} / P(down) {1 - p_up:.0%} (≈coin flip)")
-        L.append("   Low conviction → directional trades stand aside; favour the range/seller plan.")
+        if any(pl.take_trade for pl in plans):
+            L.append("   Low conviction → directional trades stand aside; favour the range/seller plan below.")
+        else:
+            L.append("   Low conviction + thin option premium → no clean setup; all personas stand aside today.")
     else:
         L.append(f"   Bias: {bias}  |  P(up) {p_up:.0%} / P(down) {1 - p_up:.0%}")
         L.append(f"   Expected close-open: {exp_magnitude_pts:+,.0f} pts (typical move in this direction)")
