@@ -6,6 +6,8 @@ the scorecard consumes, plus a futures-bracket P&L in R (consistent with the bac
 """
 from __future__ import annotations
 
+import pandas as pd
+
 from src.config import load_settings
 
 
@@ -60,3 +62,39 @@ def score_prediction(pred: dict, actual: dict) -> dict:
         "trade_r": trade_r,
         "ret_co": ret_co,
     }
+
+
+def score_pending_from_frame(daily: pd.DataFrame, before, write: bool = True):
+    """Score any unscored predictions whose session is complete, using a daily OHLC frame.
+
+    Lets Agent 1 keep the scorecard current from its own (reliable) morning run, without
+    depending on Agent 2: each morning it scores yesterday (and any earlier unscored day)
+    from the Dhan daily frame it already fetched. Only sessions strictly before ``before``
+    (today's target date) are scored — never the in-progress day. With ``write=False`` it
+    scores nothing and just returns the current standings (used on dry-runs).
+
+    Returns (Scorecard | None, latest_outcome_dict | None).
+    """
+    from src.scoring import scorecard
+    from src.storage.logs import OUTCOMES, PREDICTIONS, append_jsonl, read_jsonl
+
+    preds = read_jsonl(PREDICTIONS)
+    if not preds.empty and write:
+        preds = preds.drop_duplicates(subset="date", keep="last")
+        done = set(read_jsonl(OUTCOMES)["date"]) if not read_jsonl(OUTCOMES).empty else set()
+        before_ts = pd.Timestamp(before).normalize()
+        for _, p in preds.sort_values("date").iterrows():
+            if p["date"] in done:
+                continue
+            d = pd.Timestamp(p["date"]).normalize()
+            if d >= before_ts or d not in daily.index:
+                continue  # in-progress today, or session not in the frame
+            row = daily.loc[d]
+            actual = {"open": float(row["open"]), "high": float(row["high"]),
+                      "low": float(row["low"]), "close": float(row["close"])}
+            append_jsonl(OUTCOMES, score_prediction(p.to_dict(), actual))
+
+    outs = read_jsonl(OUTCOMES)
+    if outs.empty:
+        return None, None
+    return scorecard.compute(outs), outs.iloc[-1].to_dict()

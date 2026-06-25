@@ -127,6 +127,11 @@ def run(dry_run: bool = False, force: bool = False) -> str:
     # --- assemble daily frame (Dhan-sourced; yfinance fallback) + synthetic today row ---
     daily = _daily_frame(client, target_date)
     prior = daily[daily.index < target_date]
+
+    # Score yesterday (and any unscored past day) from this same daily frame, so the
+    # scorecard stays current from Agent 1's reliable run — no dependency on Agent 2.
+    from src.scoring.review import score_pending_from_frame
+    perf_card, last_outcome = score_pending_from_frame(daily, target_date, write=not dry_run)
     vix_val = live_vix if live_vix is not None else float(prior["vix"].iloc[-1])
     today_row = pd.DataFrame({
         "open": open_price, "high": open_price, "low": open_price, "close": open_price,
@@ -196,6 +201,20 @@ def run(dry_run: bool = False, force: bool = False) -> str:
         "dir_pred": int(preds["dir_pred"]), "conf_overall": float(preds["conf_overall"]),
         "or_ret": orc["or_ret"], "india_vix": live_vix, "atr_points": atr_points,
     })
+
+    # --- append recent-performance block (scored from Agent 1's own run) ---
+    if perf_card is not None:
+        pl = ["", "— RECENT PERFORMANCE —"]
+        if last_outcome:
+            ok = "✅" if last_outcome["dir_pred"] == last_outcome["dir_actual"] else "❌"
+            tr = last_outcome.get("trade_r")
+            tr_s = f"{tr:+.2f}R" if isinstance(tr, float) and tr == tr else "n/a"
+            pl.append(f"Last scored {last_outcome['date']}: direction {ok}, futures {tr_s}")
+        pl.append(f"Rolling (n={perf_card.n}): direction {perf_card.direction}% | "
+                  f"trade {perf_card.trade_pnl} (avg {perf_card.detail.get('mean_trade_r')}R) | "
+                  f"range_hit {perf_card.range_hit} | composite {perf_card.composite}"
+                  f" ({'satisfactory' if perf_card.satisfactory else 'below bar'})")
+        report = report + "\n" + "\n".join(pl)
 
     # --- deliver ---
     if not dry_run and dispatch.is_configured():
