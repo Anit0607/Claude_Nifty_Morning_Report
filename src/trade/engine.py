@@ -169,10 +169,11 @@ def build_trade_plans(
         bias=bias,
         take_trade=bool(conviction >= 0.08),
         confidence=round(conf_direction, 1),
-        summary=f"{'Long' if bullish else 'Short'} Nifty fut from ~{int(open_price)}",
-        legs=[f"{'BUY' if bullish else 'SELL'} NIFTY FUT @ {int(open_price)}"],
-        stop_loss=f"{int(ft_sl)} (hard {sl_pts:.0f} pts)",
-        target=f"first {int(ft_tp)} (1:{ft['target_rr']:.0f}), then TRAIL SL by {trail:.0f} pts "
+        summary=f"{'Long' if bullish else 'Short'} Nifty FUT — enter at MARKET on the open "
+                f"(~{int(open_price)} index; the future trades a few pts higher — don't wait for a limit)",
+        legs=[f"{'BUY' if bullish else 'SELL'} NIFTY FUT at market on the open"],
+        stop_loss=f"{sl_pts:.0f} pts from your fill (hard) — e.g. ~{int(ft_sl)} if filled near the open",
+        target=f"first 1:{ft['target_rr']:.0f} (+{tp_pts:.0f} pts, ~{int(ft_tp)}), then TRAIL {trail:.0f} pts "
                f"per {trail:.0f} pts in favour (breakeven at 1:1, let winner run)",
         rr=f"1:{ft['target_rr']:.0f} then trailing",
         rationale=f"Trade the model bias; tight {sl_pts:.0f}-pt stop, trail to lock profit. "
