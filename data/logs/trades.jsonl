@@ -1,0 +1,7 @@
+{"date": "2026-06-24", "persona": "directional_seller", "outcome": "win", "pnl_inr": null, "note": "23650 PE, target hit ~13:36"}
+{"date": "2026-06-24", "persona": "option_buyer", "outcome": "win", "pnl_inr": null, "note": "23800 CE, +50% exit"}
+{"date": "2026-06-24", "persona": "futures", "outcome": "no_entry", "pnl_inr": null, "note": "waited for index level (pre-fix); no fill"}
+{"date": "2026-06-29", "persona": "directional_seller", "outcome": "loss", "pnl_inr": null, "note": "24000 PE, trailing SL 64.05"}
+{"date": "2026-06-29", "persona": "option_buyer", "outcome": "loss", "pnl_inr": null, "note": "24050 CE, SL -40% @73.60"}
+{"date": "2026-06-29", "persona": "futures", "outcome": "loss", "pnl_inr": null, "note": "long, hard SL -50pts"}
+{"date": "2026-07-01", "persona": "non_directional_seller", "outcome": "win", "pnl_inr": 1621.75, "note": "24100CE/23700PE strangle 173.1->148.85, 2L capital"}

@@ -19,6 +19,7 @@ from src.config import project_path
 PREDICTIONS = project_path("data", "logs", "predictions.jsonl")
 OUTCOMES = project_path("data", "logs", "outcomes.jsonl")
 METRICS = project_path("data", "logs", "metrics.jsonl")
+TRADES = project_path("data", "logs", "trades.jsonl")   # user's ACTUAL fills (real P&L)
 
 
 def append_jsonl(path: Path, record: dict) -> None:
@@ -49,3 +50,7 @@ def log_outcome(record: dict) -> None:
 
 def log_metrics(record: dict) -> None:
     append_jsonl(METRICS, record)
+
+
+def log_trade(record: dict) -> None:
+    append_jsonl(TRADES, record)
