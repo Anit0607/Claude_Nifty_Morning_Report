@@ -5,3 +5,4 @@
 {"date": "2026-06-29", "persona": "option_buyer", "outcome": "loss", "pnl_inr": null, "note": "24050 CE, SL -40% @73.60"}
 {"date": "2026-06-29", "persona": "futures", "outcome": "loss", "pnl_inr": null, "note": "long, hard SL -50pts"}
 {"date": "2026-07-01", "persona": "non_directional_seller", "outcome": "win", "pnl_inr": 1621.75, "note": "24100CE/23700PE strangle 173.1->148.85, 2L capital"}
+{"date": "2026-07-02", "persona": "non_directional_seller", "outcome": "win", "pnl_inr": 806.0, "note": "24250CE/23850PE 115.5->103.1"}
