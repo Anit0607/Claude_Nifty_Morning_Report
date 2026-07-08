@@ -10,3 +10,4 @@
 {"date": "2026-07-07", "persona": "directional_seller", "outcome": "loss", "pnl_inr": -942.5, "note": "24500CE, SL 11:13"}
 {"date": "2026-07-07", "persona": "option_buyer", "outcome": "loss", "pnl_inr": -1378.0, "note": "24450PE, SL 10:11"}
 {"date": "2026-07-07", "persona": "futures", "outcome": "win", "pnl_inr": 2892.5, "note": "short, trailing/hard exit 15:28"}
+{"date": "2026-07-08", "persona": "non_directional_seller", "outcome": "loss", "pnl_inr": -5447.0, "note": "24500CE/24100PE, big trend-down blew through put, SL 13:56"}
