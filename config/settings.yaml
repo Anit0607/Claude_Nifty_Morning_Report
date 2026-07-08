@@ -65,11 +65,15 @@ personas:
     sl_premium_pct: 0.55
     target_premium_pct: 0.55   # 1:1
     trail: true
+    hard_stop_inr: 3000        # absolute Rs loss cap (exit whichever hits first) — naked tail guard
+    min_sideways_prob: 0.33    # skip strangle below this range-conviction (breakout-risk gate)
+    max_expected_move_pct: 0.011  # skip strangle above this expected daily move (breakout-risk gate)
   directional_seller:
     otm_buffer_mult: 0.6       # sell strikes this * expected move OTM
     sl_premium_pct: 0.55
     target_premium_pct: 0.55   # 1:1 (POP-oriented; beats strike-breach exit)
     trail: true
+    hard_stop_inr: 3000        # absolute Rs loss cap (exit whichever hits first)
   # --- Option BUYER: tight premium SL, asymmetric target ---
   option_buyer:
     min_directional_prob: 0.58 # only buy when conviction high enough

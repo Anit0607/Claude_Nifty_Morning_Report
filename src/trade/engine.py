@@ -77,14 +77,17 @@ def build_trade_plans(
             combined = cp + pp
     sl_line, tgt_line = _seller_risk(combined, nds["sl_premium_pct"],
                                      nds["target_premium_pct"], nds["trail"], per_side=True)
+    sl_line += f"  |  HARD STOP: exit whole position at -Rs{nds['hard_stop_inr']:,} (whichever first)"
     # Take the strangle when sideways is dominant OR conviction is low (a low-conviction
-    # day == range-bound, which is exactly when premium-selling shines). This ensures the
-    # user gets an actionable plan on quiet days rather than four SKIPs.
+    # day == range-bound, which is exactly when premium-selling shines).
     range_day = (p_sideways >= max(p_down, p_up_reg) * 0.9) or (conviction < 0.15)
+    # Breakout-risk gate: skip the naked strangle when range conviction is low or the
+    # expected move is high — trend days are what blow up a naked seller (e.g. 2026-07-08).
+    breakout_risk = (p_sideways < nds["min_sideways_prob"]) or (expected_move > nds["max_expected_move_pct"])
     plans.append(TradePlan(
         persona="Intraday Option Non-Directional Seller",
         bias="Neutral / Range",
-        take_trade=bool(iv_ok and range_day),
+        take_trade=bool(iv_ok and range_day and not breakout_risk),
         confidence=nds_conf,
         summary=f"Short strangle: sell {int(call_k)}CE + sell {int(put_k)}PE"
                 + (f" (premium ~{combined:.1f})" if combined else ""),
@@ -93,6 +96,7 @@ def build_trade_plans(
         rr=f"1:1 on premium ({nds['target_premium_pct']:.0%} decay vs {nds['sl_premium_pct']:.0%} stop)",
         rationale=f"Expected move ±{move_pts:,.0f} pts; sideways prob {p_sideways:.0%}. "
                   f"{'IV adequate' if iv_ok else 'IV low — premium thin, caution'}."
+                  + (" ⚠ BREAKOUT RISK — strangle skipped (trend day danger)." if breakout_risk else "")
                   + (f" Anchored to OI walls {int(opt.put_wall)}/{int(opt.call_wall)}." if opt else ""),
     ))
 
@@ -117,6 +121,7 @@ def build_trade_plans(
     if prem:
         ds_summary += f" @ ~{prem:.1f}"
     sl_line, tgt_line = _seller_risk(prem, ds["sl_premium_pct"], ds["target_premium_pct"], ds["trail"])
+    sl_line += f"  |  HARD STOP: exit at -Rs{ds['hard_stop_inr']:,} (whichever first)"
     plans.append(TradePlan(
         persona="Intraday Option Directional Seller",
         bias=bias,
