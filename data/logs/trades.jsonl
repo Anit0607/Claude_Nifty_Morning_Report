@@ -11,3 +11,7 @@
 {"date": "2026-07-07", "persona": "option_buyer", "outcome": "loss", "pnl_inr": -1378.0, "note": "24450PE, SL 10:11"}
 {"date": "2026-07-07", "persona": "futures", "outcome": "win", "pnl_inr": 2892.5, "note": "short, trailing/hard exit 15:28"}
 {"date": "2026-07-08", "persona": "non_directional_seller", "outcome": "loss", "pnl_inr": -5447.0, "note": "24500CE/24100PE, big trend-down blew through put, SL 13:56"}
+{"date": "2026-07-14", "persona": "directional_seller", "outcome": "loss", "pnl_inr": -718.25, "note": "24000PE, SL 9:38"}
+{"date": "2026-07-14", "persona": "option_buyer", "outcome": "loss", "pnl_inr": -2990.0, "note": "24050CE, SL 9:47 (-40%)"}
+{"date": "2026-07-14", "persona": "futures", "outcome": "loss", "pnl_inr": -357.5, "note": "long, manual exit 12:15"}
+{"date": "2026-07-14", "persona": "non_directional_seller", "outcome": "skip", "pnl_inr": null, "note": "skipped: high directional conviction - but day was flat, would have won"}
