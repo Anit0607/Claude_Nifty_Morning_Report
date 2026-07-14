@@ -35,6 +35,7 @@ class TradePlan:
     target: str = ""
     rr: str = ""
     rationale: str = ""
+    disabled: bool = False   # switched off by config (no demonstrated edge), not a daily gate
 
 
 def _round_to(x: float, step: float) -> float:
@@ -87,7 +88,8 @@ def build_trade_plans(
     plans.append(TradePlan(
         persona="Intraday Option Non-Directional Seller",
         bias="Neutral / Range",
-        take_trade=bool(iv_ok and range_day and not breakout_risk),
+        take_trade=bool(nds.get("enabled", True) and iv_ok and range_day and not breakout_risk),
+        disabled=not nds.get("enabled", True),
         confidence=nds_conf,
         summary=f"Short strangle: sell {int(call_k)}CE + sell {int(put_k)}PE"
                 + (f" (premium ~{combined:.1f})" if combined else ""),
@@ -125,12 +127,16 @@ def build_trade_plans(
     plans.append(TradePlan(
         persona="Intraday Option Directional Seller",
         bias=bias,
-        take_trade=bool(conviction >= 0.12),
+        take_trade=bool(ds.get("enabled", True) and conviction >= 0.12),
+        disabled=not ds.get("enabled", True),
         confidence=round(conf_direction, 1),
         summary=ds_summary, legs=ds_legs, stop_loss=sl_line, target=tgt_line,
         rr=f"1:1 on premium ({ds['target_premium_pct']:.0%} decay vs {ds['sl_premium_pct']:.0%} stop)",
-        rationale=f"Model bias {bias.lower()} (P_up={p_up:.0%}, conviction {conviction:.0%}); "
-                  f"premium-based stop beats strike-breach exit on POP.",
+        rationale=("⛔ DISABLED — 1:1 skew on a ~50% directional signal is a structural bleed "
+                   "(live 1/4, -Rs1,661). Shown for reference only."
+                   if not ds.get("enabled", True) else
+                   f"Model bias {bias.lower()} (P_up={p_up:.0%}, conviction {conviction:.0%}); "
+                   f"premium-based stop beats strike-breach exit on POP."),
     ))
 
     # ---- 3. Option Buyer (gated to high conviction) ----
@@ -151,13 +157,17 @@ def build_trade_plans(
     plans.append(TradePlan(
         persona="Intraday Option Buyer",
         bias=bias,
-        take_trade=bool(dir_prob >= min_prob),
+        take_trade=bool(ob.get("enabled", True) and dir_prob >= min_prob),
+        disabled=not ob.get("enabled", True),
         confidence=round(conf_direction * (1.0 if dir_prob >= min_prob else 0.6), 1),
         summary=f"Buy {int(buy_k)} {side} (ATM)" + (f" @ ~{prem:.1f}" if prem else "") + " — directional",
         legs=[f"BUY {int(buy_k)} {side}"],
         stop_loss=ob_sl, target=ob_tgt, rr=f"~1:{ob['target_rr']:.0f}",
-        rationale=f"Directional prob {dir_prob:.0%} vs gate {min_prob:.0%}: "
-                  f"{'TAKE' if dir_prob >= min_prob else 'SKIP — conviction too low'}.",
+        rationale=("⛔ DISABLED — the 40% stop on an ATM option gets shredded by chop, so the 1:2 "
+                   "skew never materializes (live 1/4, -Rs4,368). Shown for reference only."
+                   if not ob.get("enabled", True) else
+                   f"Directional prob {dir_prob:.0%} vs gate {min_prob:.0%}: "
+                   f"{'TAKE' if dir_prob >= min_prob else 'SKIP — conviction too low'}."),
     ))
 
     # ---- 4. Futures Trader: hard points SL + trailing (user's risk style) ----
@@ -172,7 +182,8 @@ def build_trade_plans(
     plans.append(TradePlan(
         persona="Intraday Futures Trader",
         bias=bias,
-        take_trade=bool(conviction >= 0.08),
+        take_trade=bool(ft.get("enabled", True) and conviction >= 0.08),
+        disabled=not ft.get("enabled", True),
         confidence=round(conf_direction, 1),
         summary=f"{'Long' if bullish else 'Short'} Nifty FUT — enter at MARKET on the open "
                 f"(~{int(open_price)} index; the future trades a few pts higher — don't wait for a limit)",
