@@ -132,11 +132,8 @@ def build_trade_plans(
         confidence=round(conf_direction, 1),
         summary=ds_summary, legs=ds_legs, stop_loss=sl_line, target=tgt_line,
         rr=f"1:1 on premium ({ds['target_premium_pct']:.0%} decay vs {ds['sl_premium_pct']:.0%} stop)",
-        rationale=("⛔ DISABLED — 1:1 skew on a ~50% directional signal is a structural bleed "
-                   "(live 1/4, -Rs1,661). Shown for reference only."
-                   if not ds.get("enabled", True) else
-                   f"Model bias {bias.lower()} (P_up={p_up:.0%}, conviction {conviction:.0%}); "
-                   f"premium-based stop beats strike-breach exit on POP."),
+        rationale=f"Model bias {bias.lower()} (P_up={p_up:.0%}, conviction {conviction:.0%}); "
+                  f"premium-based stop beats strike-breach exit on POP.",
     ))
 
     # ---- 3. Option Buyer (gated to high conviction) ----
@@ -163,11 +160,8 @@ def build_trade_plans(
         summary=f"Buy {int(buy_k)} {side} (ATM)" + (f" @ ~{prem:.1f}" if prem else "") + " — directional",
         legs=[f"BUY {int(buy_k)} {side}"],
         stop_loss=ob_sl, target=ob_tgt, rr=f"~1:{ob['target_rr']:.0f}",
-        rationale=("⛔ DISABLED — the 40% stop on an ATM option gets shredded by chop, so the 1:2 "
-                   "skew never materializes (live 1/4, -Rs4,368). Shown for reference only."
-                   if not ob.get("enabled", True) else
-                   f"Directional prob {dir_prob:.0%} vs gate {min_prob:.0%}: "
-                   f"{'TAKE' if dir_prob >= min_prob else 'SKIP — conviction too low'}."),
+        rationale=f"Directional prob {dir_prob:.0%} vs gate {min_prob:.0%}: "
+                  f"{'TAKE' if dir_prob >= min_prob else 'SKIP — conviction too low'}.",
     ))
 
     # ---- 4. Futures Trader: hard points SL + trailing (user's risk style) ----
@@ -196,7 +190,9 @@ def build_trade_plans(
                   f"{'TAKE' if conviction >= 0.08 else 'stand aside (no conviction)'}.",
     ))
 
-    return plans
+    # Personas switched off in config are dropped entirely — they're retired strategies,
+    # not daily skips, so showing them would just be noise.
+    return [pl for pl in plans if not pl.disabled]
 
 
 def _seller_risk(premium: float | None, sl_pct: float, tgt_pct: float,

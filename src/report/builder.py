@@ -82,7 +82,7 @@ def build_report(
     # 4. Trade Plans
     L.append("4️⃣ TRADER-SPECIFIC PLANS")
     for pl in plans:
-        flag = "⛔ DISABLED" if pl.disabled else ("✅ TAKE" if pl.take_trade else "⏸️ SKIP")
+        flag = "✅ TAKE" if pl.take_trade else "⏸️ SKIP"
         L.append(f"   • {pl.persona}  [{flag}, conf {pl.confidence:.0f}]")
         L.append(f"     {pl.summary}")
         if pl.stop_loss:
