@@ -15,3 +15,5 @@
 {"date": "2026-07-14", "persona": "option_buyer", "outcome": "loss", "pnl_inr": -2990.0, "note": "24050CE, SL 9:47 (-40%)"}
 {"date": "2026-07-14", "persona": "futures", "outcome": "loss", "pnl_inr": -357.5, "note": "long, manual exit 12:15"}
 {"date": "2026-07-14", "persona": "non_directional_seller", "outcome": "skip", "pnl_inr": null, "note": "skipped: high directional conviction - but day was flat, would have won"}
+{"date": "2026-07-16", "persona": "futures", "outcome": "loss", "pnl_inr": -65.0, "note": "long, near-scratch exit 12:57"}
+{"date": "2026-07-16", "persona": "non_directional_seller", "outcome": "skip", "pnl_inr": null, "note": "blocked by bullish lean; rangebound day (would have won)"}
