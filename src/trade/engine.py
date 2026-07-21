@@ -79,16 +79,16 @@ def build_trade_plans(
     sl_line, tgt_line = _seller_risk(combined, nds["sl_premium_pct"],
                                      nds["target_premium_pct"], nds["trail"], per_side=True)
     sl_line += f"  |  HARD STOP: exit whole position at -Rs{nds['hard_stop_inr']:,} (whichever first)"
-    # Take the strangle when sideways is dominant OR conviction is low (a low-conviction
-    # day == range-bound, which is exactly when premium-selling shines).
-    range_day = (p_sideways >= max(p_down, p_up_reg) * 0.9) or (conviction < 0.15)
-    # Breakout-risk gate: skip the naked strangle when range conviction is low or the
-    # expected move is high — trend days are what blow up a naked seller (e.g. 2026-07-08).
+    # DECOUPLED from the direction model (2026-07-16): direction ran 44% over 18 sessions
+    # (worse than a coin flip) yet its "conviction" kept vetoing the strangle on rangebound
+    # days it would have won (07-14, 07-16). Gate is now IV + breakout-risk ONLY.
+    # Breakout-risk: skip the naked strangle when range conviction is low or the expected
+    # move is high — trend days are what blow up a naked seller (e.g. 2026-07-08).
     breakout_risk = (p_sideways < nds["min_sideways_prob"]) or (expected_move > nds["max_expected_move_pct"])
     plans.append(TradePlan(
         persona="Intraday Option Non-Directional Seller",
         bias="Neutral / Range",
-        take_trade=bool(nds.get("enabled", True) and iv_ok and range_day and not breakout_risk),
+        take_trade=bool(nds.get("enabled", True) and iv_ok and not breakout_risk),
         disabled=not nds.get("enabled", True),
         confidence=nds_conf,
         summary=f"Short strangle: sell {int(call_k)}CE + sell {int(put_k)}PE"
