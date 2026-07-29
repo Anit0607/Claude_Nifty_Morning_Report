@@ -19,3 +19,5 @@
 {"date": "2026-07-16", "persona": "non_directional_seller", "outcome": "skip", "pnl_inr": null, "note": "blocked by bullish lean; rangebound day (would have won)"}
 {"date": "2026-07-21", "persona": "futures", "outcome": "loss", "pnl_inr": -3012.75, "note": "long 10:14, SL 10:52"}
 {"date": "2026-07-21", "persona": "non_directional_seller", "outcome": "skip", "pnl_inr": null, "note": "blocked by bullish lean (pre-decouple); 127-pt range day, would have won"}
+{"date": "2026-07-29", "persona": "non_directional_seller", "outcome": "win", "pnl_inr": 477.75, "note": "DECOUPLED: 24350CE/24000PE, 9:24->15:25"}
+{"date": "2026-07-29", "persona": "futures", "outcome": "no_entry", "pnl_inr": null, "note": "no fill"}
