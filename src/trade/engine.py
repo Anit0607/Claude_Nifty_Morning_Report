@@ -36,6 +36,9 @@ class TradePlan:
     rr: str = ""
     rationale: str = ""
     disabled: bool = False   # switched off by config (no demonstrated edge), not a daily gate
+    # Machine-readable trade spec so the evening run can replay the plan against intraday
+    # data and compute real P&L (see src/scoring/trade_sim.py). Logged to predictions.jsonl.
+    sim: dict = field(default_factory=dict)
 
 
 def _round_to(x: float, step: float) -> float:
@@ -100,6 +103,20 @@ def build_trade_plans(
                   f"{'IV adequate' if iv_ok else 'IV low — premium thin, caution'}."
                   + (" ⚠ BREAKOUT RISK — strangle skipped (trend day danger)." if breakout_risk else "")
                   + (f" Anchored to OI walls {int(opt.put_wall)}/{int(opt.call_wall)}." if opt else ""),
+        sim={
+            "kind": "option_spread",
+            "legs": [
+                {"side": "SELL", "right": "CE", "strike": float(call_k),
+                 "security_id": opt.call_sid(call_k) if opt else None,
+                 "entry": opt.call_premium(call_k) if opt else None},
+                {"side": "SELL", "right": "PE", "strike": float(put_k),
+                 "security_id": opt.put_sid(put_k) if opt else None,
+                 "entry": opt.put_premium(put_k) if opt else None},
+            ],
+            "sl_premium_pct": nds["sl_premium_pct"],
+            "target_premium_pct": nds["target_premium_pct"],
+            "hard_stop_inr": nds["hard_stop_inr"],
+        } if opt else {},
     ))
 
     # ---- 2. Directional Seller (sell the OTM opposite side), premium-based 1:1 ----
@@ -188,6 +205,14 @@ def build_trade_plans(
         rr=f"1:{ft['target_rr']:.0f} then trailing",
         rationale=f"Trade the model bias; tight {sl_pts:.0f}-pt stop, trail to lock profit. "
                   f"{'TAKE' if conviction >= 0.08 else 'stand aside (no conviction)'}.",
+        sim={
+            "kind": "futures",
+            "direction": "LONG" if bullish else "SHORT",
+            "entry": float(open_price),
+            "sl_points": sl_pts,
+            "target_points": tp_pts,
+            "trail_step": trail,
+        },
     ))
 
     # Personas switched off in config are dropped entirely — they're retired strategies,

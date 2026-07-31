@@ -52,6 +52,73 @@ def _latest_session(client: DhanClient) -> tuple[pd.Timestamp, dict]:
     return date, {"open": float(last["open"]), **or_row}
 
 
+# Stable keys for the trade ledger (report titles are prose and may change).
+_PERSONA_KEYS = {
+    "Intraday Option Non-Directional Seller": "non_directional_seller",
+    "Intraday Option Directional Seller": "directional_seller",
+    "Intraday Option Buyer": "option_buyer",
+    "Intraday Futures Trader": "futures",
+}
+
+
+def _ledger_lines() -> list[str]:
+    """Actual/simulated trade P&L summary for the email (per persona + net)."""
+    from src.storage.logs import TRADES
+
+    df = read_jsonl(TRADES)
+    if df.empty:
+        return []
+    taken = df[df["outcome"].isin({"win", "loss"})]
+    if taken.empty:
+        return []
+    wins = int((taken["outcome"] == "win").sum())
+    net = df["pnl_inr"].dropna().sum() if "pnl_inr" in df else 0.0
+    lines = [f"Trade ledger ({df['date'].nunique()} sessions): {wins}/{len(taken)} wins, "
+             f"net Rs {net:,.0f}"]
+    for persona, g in df.groupby("persona"):
+        gt = g[g["outcome"].isin({"win", "loss"})]
+        if gt.empty:
+            continue
+        rupees = g["pnl_inr"].dropna().sum() if "pnl_inr" in g else 0.0
+        lines.append(f"   {persona}: {int((gt['outcome']=='win').sum())}/{len(gt)}, Rs {rupees:,.0f}")
+    return lines
+
+
+def _simulate_pending_trades(client: DhanClient, before: pd.Timestamp) -> str | None:
+    """Auto-compute P&L for completed sessions whose plans haven't been simulated yet.
+
+    Only touches dates strictly before ``before`` (never the in-progress session) and skips
+    any date already present in the ledger, so a user's hand-reported fill always wins.
+    """
+    from src.scoring.trade_sim import simulate_plans
+    from src.storage.logs import TRADES, log_trade
+
+    preds = read_jsonl(PREDICTIONS)
+    if preds.empty:
+        return None
+    preds = preds.drop_duplicates(subset="date", keep="last")
+
+    ledger = read_jsonl(TRADES)
+    logged_dates = set(ledger["date"]) if not ledger.empty else set()
+
+    added, total = 0, 0.0
+    for _, p in preds.sort_values("date").iterrows():
+        d = pd.Timestamp(p["date"]).normalize()
+        if d >= pd.Timestamp(before).normalize() or p["date"] in logged_dates:
+            continue
+        if not isinstance(p.get("plans"), list) or not p["plans"]:
+            continue   # pre-dates plan logging
+        for row in simulate_plans(client, p.to_dict()):
+            log_trade(row)
+            if row.get("pnl_inr"):
+                total += float(row["pnl_inr"])
+                added += 1
+    if not added:
+        return None
+    print(f"  [trade-sim] auto-logged {added} trade(s), net Rs {total:,.2f}")
+    return f"Auto-simulated {added} trade(s) from prior session(s): net Rs {total:,.2f}"
+
+
 def _daily_frame(client: DhanClient, target_date: pd.Timestamp) -> pd.DataFrame:
     """Authoritative recent daily frame for live features.
 
@@ -132,6 +199,14 @@ def run(dry_run: bool = False, force: bool = False) -> str:
     # scorecard stays current from Agent 1's reliable run — no dependency on Agent 2.
     from src.scoring.review import score_pending_from_frame
     perf_card, last_outcome = score_pending_from_frame(daily, target_date, write=not dry_run)
+
+    # Replay past plans against intraday data to log REAL P&L automatically (no manual entry).
+    sim_summary = None
+    if not dry_run:
+        try:
+            sim_summary = _simulate_pending_trades(client, target_date)
+        except Exception as exc:
+            print(f"[warn] trade simulation failed: {str(exc)[:150]}")
     vix_val = live_vix if live_vix is not None else float(prior["vix"].iloc[-1])
     today_row = pd.DataFrame({
         "open": open_price, "high": open_price, "low": open_price, "close": open_price,
@@ -200,6 +275,9 @@ def run(dry_run: bool = False, force: bool = False) -> str:
         "expected_move": float(preds["expected_move"]),
         "dir_pred": int(preds["dir_pred"]), "conf_overall": float(preds["conf_overall"]),
         "or_ret": orc["or_ret"], "india_vix": live_vix, "atr_points": atr_points,
+        # Machine-readable plans so the next run can replay them for real P&L.
+        "plans": [{"persona": pl.persona, "persona_key": _PERSONA_KEYS.get(pl.persona, "unknown"),
+                   "take_trade": pl.take_trade, "sim": pl.sim} for pl in plans],
     })
 
     # --- append recent-performance block (scored from Agent 1's own run) ---
@@ -214,6 +292,9 @@ def run(dry_run: bool = False, force: bool = False) -> str:
                   f"trade {perf_card.trade_pnl} (avg {perf_card.detail.get('mean_trade_r')}R) | "
                   f"range_hit {perf_card.range_hit} | composite {perf_card.composite}"
                   f" ({'satisfactory' if perf_card.satisfactory else 'below bar'})")
+        if sim_summary:
+            pl.append(sim_summary)
+        pl.extend(_ledger_lines())
         report = report + "\n" + "\n".join(pl)
 
     # --- deliver ---

@@ -34,6 +34,8 @@ class OptionFeatures:
     strike_step: float
     ce_ltp: dict[float, float]   # strike -> call last price
     pe_ltp: dict[float, float]   # strike -> put last price
+    ce_sid: dict[float, int]     # strike -> call security id (for intraday replay)
+    pe_sid: dict[float, int]     # strike -> put security id
 
     def _nearest(self, mapping: dict[float, float], strike: float) -> float | None:
         if not mapping:
@@ -48,6 +50,14 @@ class OptionFeatures:
 
     def put_premium(self, strike: float) -> float | None:
         return self._nearest(self.pe_ltp, strike)
+
+    def call_sid(self, strike: float) -> int | None:
+        v = self._nearest(self.ce_sid, strike)
+        return int(v) if v else None
+
+    def put_sid(self, strike: float) -> int | None:
+        v = self._nearest(self.pe_sid, strike)
+        return int(v) if v else None
 
 
 def _normalize(oc_response: dict) -> tuple[float, dict]:
@@ -126,10 +136,20 @@ def extract_option_features(oc_response: dict, expiry: str) -> OptionFeatures:
     ce_ltp = {k: _ltp(chain[k].get("ce", {})) for k in strikes}
     pe_ltp = {k: _ltp(chain[k].get("pe", {})) for k in strikes}
 
+    def _sid(leg: dict) -> int:
+        try:
+            return int(leg.get("security_id") or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    ce_sid = {k: _sid(chain[k].get("ce", {})) for k in strikes}
+    pe_sid = {k: _sid(chain[k].get("pe", {})) for k in strikes}
+
     return OptionFeatures(
         spot=spot, atm_strike=atm, pcr=round(pcr, 3), max_pain=_max_pain(chain),
         call_wall=call_wall, put_wall=put_wall, atm_iv=round(atm_iv, 2),
         iv_skew=round(iv_skew, 2),
         atm_ce_ltp=_ltp(atm_ce), atm_pe_ltp=_ltp(atm_pe),
         expiry=expiry, strike_step=step, ce_ltp=ce_ltp, pe_ltp=pe_ltp,
+        ce_sid=ce_sid, pe_sid=pe_sid,
     )
