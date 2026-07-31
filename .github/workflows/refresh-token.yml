@@ -1,0 +1,41 @@
+name: Refresh Dhan Token
+
+# Dhan tokens expire after 24h (SEBI rule), but RenewToken mints a fresh one from the
+# current token — no login. Runs TWICE DAILY, EVERY DAY (including weekends): the chain
+# breaks if a token is ever left to fully expire, so weekday-only would die each Saturday.
+# The second run is redundancy — one failed attempt doesn't break the chain.
+on:
+  schedule:
+    - cron: "30 1 * * *"    # 07:00 IST — well before the 09:22 prediction run
+    - cron: "30 13 * * *"   # 19:00 IST — second chance the same day
+  workflow_dispatch: {}
+
+concurrency:
+  group: refresh-token
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install requests PyNaCl python-dotenv pyyaml
+
+      - name: Renew token and update the repository secret
+        env:
+          DHAN_ACCESS_TOKEN: ${{ secrets.DHAN_ACCESS_TOKEN }}
+          DHAN_CLIENT_ID: ${{ secrets.DHAN_CLIENT_ID }}
+          # PAT needs "Secrets: read and write" so it can rewrite DHAN_ACCESS_TOKEN.
+          GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python -m scripts.refresh_dhan_token

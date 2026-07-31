@@ -16,5 +16,8 @@ arch>=7.0          # EGARCH/TGARCH conditional volatility
 # HTTP (Dhan REST, Telegram Bot API, global cues)
 requests>=2.32
 
+# Sealed-box encryption for writing GitHub Actions secrets (Dhan token auto-refresh)
+PyNaCl>=1.5
+
 # Optional: richer LLM narration/diagnosis (only used if ANTHROPIC_API_KEY is set)
 anthropic>=0.40
