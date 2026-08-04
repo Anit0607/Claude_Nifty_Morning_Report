@@ -111,9 +111,19 @@ def main(check: bool = False) -> None:
     if repo and gh_token:
         update_github_secret(_SECRET_NAME, new_token, repo, gh_token)
         print(f"updated {_SECRET_NAME} secret in {repo}")
+    elif repo:
+        # In CI without a PAT this is NOT a success: RenewToken has already invalidated the
+        # old token, so the stored secret is now dead and the only live token is this output.
+        # Fail loudly (and alert) rather than let the pipeline break silently tomorrow.
+        raise RuntimeError(
+            "Renewed the token but GH_SECRETS_TOKEN is missing, so the secret was NOT updated. "
+            "The OLD token is now invalid — RenewToken expires it on renewal. Copy the token "
+            f"below into the {_SECRET_NAME} secret NOW, then add a PAT with 'Secrets: read and "
+            f"write' as GH_SECRETS_TOKEN:\n\n{new_token}")
     else:
         # Local run: print so it can be pasted, rather than silently doing nothing.
-        print("\n[no GH_TOKEN/GITHUB_REPOSITORY — secret not updated]")
+        print("\n[local run — secret not updated; paste this into the "
+              f"{_SECRET_NAME} secret]")
         print(f"new token:\n{new_token}")
 
 
