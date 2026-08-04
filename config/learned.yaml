@@ -1,0 +1,3 @@
+tunable:
+  range:
+    band_quantile: 0.85
