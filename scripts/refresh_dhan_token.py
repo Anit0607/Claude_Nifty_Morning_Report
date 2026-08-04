@@ -113,13 +113,14 @@ def main(check: bool = False) -> None:
         print(f"updated {_SECRET_NAME} secret in {repo}")
     elif repo:
         # In CI without a PAT this is NOT a success: RenewToken has already invalidated the
-        # old token, so the stored secret is now dead and the only live token is this output.
-        # Fail loudly (and alert) rather than let the pipeline break silently tomorrow.
+        # old token, so the stored secret is now dead. The new token cannot be rescued from
+        # the log either — GitHub masks it — so the only fix is a manual re-bootstrap.
         raise RuntimeError(
             "Renewed the token but GH_SECRETS_TOKEN is missing, so the secret was NOT updated. "
-            "The OLD token is now invalid — RenewToken expires it on renewal. Copy the token "
-            f"below into the {_SECRET_NAME} secret NOW, then add a PAT with 'Secrets: read and "
-            f"write' as GH_SECRETS_TOKEN:\n\n{new_token}")
+            "RenewToken invalidates the old token on renewal, and GitHub masks the new one in "
+            "logs, so it cannot be recovered here. FIX: (1) add a PAT with 'Secrets: read and "
+            "write' as the GH_SECRETS_TOKEN secret, (2) generate a fresh token at web.dhan.co "
+            f"and set {_SECRET_NAME}, (3) re-run this workflow.")
     else:
         # Local run: print so it can be pasted, rather than silently doing nothing.
         print("\n[local run — secret not updated; paste this into the "
