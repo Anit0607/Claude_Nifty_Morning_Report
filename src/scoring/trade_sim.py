@@ -158,10 +158,13 @@ def simulate_plans(client, prediction: dict) -> list[dict]:
                          "outcome": "unknown", "pnl_inr": None, "source": "simulated",
                          "note": "intraday data unavailable"})
             continue
+        pnl = result["pnl_inr"]
+        # Exactly breakeven (a trail-to-entry stop-out) is a scratch, not a loss — counting
+        # it as one would understate the win-rate.
+        outcome = "win" if pnl > 0 else ("loss" if pnl < 0 else "scratch")
         rows.append({
             "date": date_str, "persona": plan.get("persona_key", "unknown"),
-            "outcome": "win" if result["pnl_inr"] > 0 else "loss",
-            "pnl_inr": result["pnl_inr"], "source": "simulated",
+            "outcome": outcome, "pnl_inr": pnl, "source": "simulated",
             "note": f"auto: exit {result['exit']} ({result['reason']})",
         })
     return rows

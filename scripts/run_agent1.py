@@ -68,7 +68,7 @@ def _ledger_lines() -> list[str]:
     df = read_jsonl(TRADES)
     if df.empty:
         return []
-    taken = df[df["outcome"].isin({"win", "loss"})]
+    taken = df[df["outcome"].isin({"win", "loss"})]   # scratches excluded from win-rate
     if taken.empty:
         return []
     wins = int((taken["outcome"] == "win").sum())
@@ -110,7 +110,8 @@ def _simulate_pending_trades(client: DhanClient, before: pd.Timestamp) -> str | 
             continue   # pre-dates plan logging
         for row in simulate_plans(client, p.to_dict()):
             log_trade(row)
-            if row.get("pnl_inr"):
+            # `is not None` — a breakeven scratch is 0.0, which is falsy but still a trade.
+            if row.get("pnl_inr") is not None:
                 total += float(row["pnl_inr"])
                 added += 1
     if not added:
