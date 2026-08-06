@@ -23,3 +23,5 @@
 {"date": "2026-07-29", "persona": "futures", "outcome": "no_entry", "pnl_inr": null, "note": "no fill"}
 {"date": "2026-08-03", "persona": "non_directional_seller", "outcome": "skip", "pnl_inr": null, "source": "simulated", "note": "plan not taken"}
 {"date": "2026-08-03", "persona": "futures", "outcome": "scratch", "pnl_inr": 0.0, "source": "simulated", "note": "auto: exit 10:00 (stop/trail)"}
+{"date": "2026-08-05", "persona": "non_directional_seller", "outcome": "loss", "pnl_inr": -3000.0, "source": "simulated", "note": "auto: exit 12:30 (hard_stop)"}
+{"date": "2026-08-05", "persona": "futures", "outcome": "win", "pnl_inr": 3750.0, "source": "simulated", "note": "auto: exit 10:50 (stop/trail)"}
