@@ -25,3 +25,5 @@
 {"date": "2026-08-03", "persona": "futures", "outcome": "scratch", "pnl_inr": 0.0, "source": "simulated", "note": "auto: exit 10:00 (stop/trail)"}
 {"date": "2026-08-05", "persona": "non_directional_seller", "outcome": "loss", "pnl_inr": -3000.0, "source": "simulated", "note": "auto: exit 12:30 (hard_stop)"}
 {"date": "2026-08-05", "persona": "futures", "outcome": "win", "pnl_inr": 3750.0, "source": "simulated", "note": "auto: exit 10:50 (stop/trail)"}
+{"date": "2026-08-06", "persona": "non_directional_seller", "outcome": "win", "pnl_inr": 671.25, "source": "simulated", "note": "auto: exit close (eod)"}
+{"date": "2026-08-06", "persona": "futures", "outcome": "win", "pnl_inr": 375.0, "source": "simulated", "note": "auto: exit close (eod)"}
