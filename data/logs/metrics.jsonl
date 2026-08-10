@@ -3,3 +3,5 @@
 {"type": "review_sent", "ist_date": "2026-08-05"}
 {"type": "scorecard", "n": 20, "composite": 39.05, "direction": 45.0, "range_hit": 41.64, "calibration": 0.0, "trade_pnl": 47.42, "satisfactory": false}
 {"type": "review_sent", "ist_date": "2026-08-07"}
+{"type": "scorecard", "n": 20, "composite": 41.18, "direction": 50.0, "range_hit": 40.4, "calibration": 0.0, "trade_pnl": 48.65, "satisfactory": false}
+{"type": "review_sent", "ist_date": "2026-08-10"}
