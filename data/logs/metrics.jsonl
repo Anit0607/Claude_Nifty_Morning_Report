@@ -17,3 +17,5 @@
 {"type": "review_sent", "ist_date": "2026-08-17"}
 {"type": "scorecard", "n": 20, "composite": 45.03, "direction": 60.0, "range_hit": 39.49, "calibration": 0.0, "trade_pnl": 52.1, "satisfactory": false}
 {"type": "review_sent", "ist_date": "2026-08-18"}
+{"type": "scorecard", "n": 20, "composite": 47.13, "direction": 65.0, "range_hit": 39.56, "calibration": 0.0, "trade_pnl": 55.72, "satisfactory": false}
+{"type": "review_sent", "ist_date": "2026-08-19"}
