@@ -69,3 +69,6 @@
 {"type": "review_sent", "ist_date": "2026-09-26"}
 {"type": "scorecard", "n": 20, "composite": 44.46, "direction": 65.0, "range_hit": 37.68, "calibration": 1.86, "trade_pnl": 50.5, "satisfactory": false}
 {"type": "review_sent", "ist_date": "2026-09-29"}
+{"type": "improvement", "ts": "2026-09-29T19:39:22.084947+00:00", "champion_composite": 45.8, "best_challenger_composite": 45.8, "best_override": {"tunable": {"range": {"band_quantile": 0.85}}}, "candidates": [{"override": {"tunable": {"range": {"band_quantile": 0.6}}}, "composite": 42.51}, {"override": {"tunable": {"range": {"band_quantile": 0.65}}}, "composite": 43.28}, {"override": {"tunable": {"range": {"band_quantile": 0.7}}}, "composite": 44.18}, {"override": {"tunable": {"range": {"band_quantile": 0.75}}}, "composite": 44.87}, {"override": {"tunable": {"range": {"band_quantile": 0.8}}}, "composite": 45.63}, {"override": {"tunable": {"range": {"band_quantile": 0.85}}}, "composite": 45.8}], "promoted": false}
+{"type": "scorecard", "n": 20, "composite": 48.17, "direction": 70.0, "range_hit": 37.54, "calibration": 3.54, "trade_pnl": 55.44, "satisfactory": false}
+{"type": "review_sent", "ist_date": "2026-09-30"}
