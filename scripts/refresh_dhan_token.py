@@ -50,15 +50,33 @@ def renew(token: str, client_id: str) -> str:
     resp = requests.get(_RENEW_URL, timeout=30, headers={
         "access-token": token, "dhanClientId": client_id, "Accept": "application/json"})
     if resp.status_code != 200:
-        raise RuntimeError(f"RenewToken failed: HTTP {resp.status_code}: {resp.text[:300]}")
+        raise RuntimeError(f"RenewToken failed: HTTP {resp.status_code}")
     data = resp.json()
     new_token = data.get("accessToken") or data.get("access_token") or data.get("token")
     if not new_token:
-        raise RuntimeError(f"RenewToken response had no token: {str(data)[:300]}")
+        raise RuntimeError("RenewToken response had no token")
     return new_token
 
 
-def update_github_secret(name: str, value: str, repo: str, gh_token: str) -> None:
+def github_public_key(repo: str, gh_token: str) -> dict:
+    """Validate GitHub authentication/read access before invalidating a Dhan token."""
+    resp = requests.get(
+        f"https://api.github.com/repos/{repo}/actions/secrets/public-key",
+        headers={"Authorization": f"Bearer {gh_token}",
+                 "Accept": "application/vnd.github+json",
+                 "X-GitHub-Api-Version": "2022-11-28"}, timeout=30)
+    if resp.status_code != 200:
+        raise RuntimeError(f"public-key fetch failed: HTTP {resp.status_code}")
+    data = resp.json()
+    from nacl import encoding, public
+    public.PublicKey(data["key"].encode(), encoding.Base64Encoder())
+    if not data.get("key_id"):
+        raise RuntimeError("GitHub public-key response missing key_id")
+    return data
+
+
+def update_github_secret(name: str, value: str, repo: str, gh_token: str,
+                         key_data: dict | None = None) -> None:
     """Store a repository secret (GitHub requires libsodium sealed-box encryption)."""
     from nacl import encoding, public
 
@@ -66,12 +84,7 @@ def update_github_secret(name: str, value: str, repo: str, gh_token: str) -> Non
                "Accept": "application/vnd.github+json",
                "X-GitHub-Api-Version": "2022-11-28"}
 
-    key_resp = requests.get(f"https://api.github.com/repos/{repo}/actions/secrets/public-key",
-                            headers=headers, timeout=30)
-    if key_resp.status_code != 200:
-        raise RuntimeError(f"public-key fetch failed: HTTP {key_resp.status_code}: "
-                           f"{key_resp.text[:200]}")
-    key_data = key_resp.json()
+    key_data = key_data or github_public_key(repo, gh_token)
 
     sealed = public.SealedBox(
         public.PublicKey(key_data["key"].encode(), encoding.Base64Encoder())
@@ -81,7 +94,8 @@ def update_github_secret(name: str, value: str, repo: str, gh_token: str) -> Non
         f"https://api.github.com/repos/{repo}/actions/secrets/{name}", headers=headers, timeout=30,
         json={"encrypted_value": base64.b64encode(sealed).decode(), "key_id": key_data["key_id"]})
     if put.status_code not in (201, 204):
-        raise RuntimeError(f"secret update failed: HTTP {put.status_code}: {put.text[:200]}")
+        raise RuntimeError(f"secret update failed: HTTP {put.status_code}; renewed token was not persisted. "
+                           "Owner must securely bootstrap a fresh Dhan token after fixing GitHub access.")
 
 
 def main(check: bool = False) -> None:
@@ -101,31 +115,18 @@ def main(check: bool = False) -> None:
     if check:
         return
 
+    # Fail before renewal: it invalidates the old token. Never print a replacement token.
+    repo = get_env("GITHUB_REPOSITORY", required=True)
+    gh_token = get_env("GH_TOKEN", required=True)
+    key_data = github_public_key(repo, gh_token)
+    # A public-key read cannot prove write permission; the owner must grant Secrets write.
     new_token = renew(token, client_id)
     new_exp = token_expiry(new_token)
     print(f"renewed OK — new token valid until {new_exp:%Y-%m-%d %H:%M} UTC"
           if new_exp else "renewed OK")
 
-    repo = get_env("GITHUB_REPOSITORY")
-    gh_token = get_env("GH_TOKEN")
-    if repo and gh_token:
-        update_github_secret(_SECRET_NAME, new_token, repo, gh_token)
-        print(f"updated {_SECRET_NAME} secret in {repo}")
-    elif repo:
-        # In CI without a PAT this is NOT a success: RenewToken has already invalidated the
-        # old token, so the stored secret is now dead. The new token cannot be rescued from
-        # the log either — GitHub masks it — so the only fix is a manual re-bootstrap.
-        raise RuntimeError(
-            "Renewed the token but GH_SECRETS_TOKEN is missing, so the secret was NOT updated. "
-            "RenewToken invalidates the old token on renewal, and GitHub masks the new one in "
-            "logs, so it cannot be recovered here. FIX: (1) add a PAT with 'Secrets: read and "
-            "write' as the GH_SECRETS_TOKEN secret, (2) generate a fresh token at web.dhan.co "
-            f"and set {_SECRET_NAME}, (3) re-run this workflow.")
-    else:
-        # Local run: print so it can be pasted, rather than silently doing nothing.
-        print("\n[local run — secret not updated; paste this into the "
-              f"{_SECRET_NAME} secret]")
-        print(f"new token:\n{new_token}")
+    update_github_secret(_SECRET_NAME, new_token, repo, gh_token, key_data=key_data)
+    print(f"updated {_SECRET_NAME} secret in {repo}")
 
 
 if __name__ == "__main__":
@@ -140,12 +141,13 @@ if __name__ == "__main__":
         main(check=args.check)
     except Exception as exc:
         # Alert loudly — a silent failure here breaks tomorrow's whole pipeline.
-        try:
-            from src.delivery import dispatch
-            dispatch.send(f"{type(exc).__name__}: {str(exc)[:400]}\n\n"
-                          "If the token has fully expired, bootstrap once at web.dhan.co and "
-                          "update the DHAN_ACCESS_TOKEN secret.",
-                          subject="⚠️ Dhan token refresh FAILED")
-        except Exception:
-            pass
+        if not args.check:
+            try:
+                from src.delivery import dispatch
+                dispatch.send(f"Token refresh failed ({type(exc).__name__}). See Actions diagnostics.\n\n"
+                              "If the token has fully expired, bootstrap once at web.dhan.co and "
+                              "update the DHAN_ACCESS_TOKEN secret.",
+                              subject="⚠️ Dhan token refresh FAILED")
+            except Exception:
+                pass
         raise

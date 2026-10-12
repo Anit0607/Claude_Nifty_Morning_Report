@@ -29,7 +29,7 @@ from src.features.volatility import atr
 from src.models.predictor import predict_outputs
 from src.models.registry import load_bundle, get_active_version
 from src.report.builder import build_report
-from src.storage.logs import PREDICTIONS, log_prediction, read_jsonl
+from src.storage.logs import PREDICTIONS, DELIVERIES, log_delivery, log_prediction, read_jsonl
 from src.trade.engine import build_trade_plans
 from src.delivery import dispatch
 
@@ -156,6 +156,19 @@ def _daily_frame(client: DhanClient, target_date: pd.Timestamp) -> pd.DataFrame:
         return load_training_frame()
 
 
+def _deliver_report(report: str, target_date: pd.Timestamp) -> None:
+    """Only acknowledged delivery suppresses a later retry."""
+    if not dispatch.send(report, subject=f"NIFTY Pre-Market Outlook - {target_date.date()}"):
+        raise RuntimeError("Report delivery was not acknowledged by any configured channel")
+    log_delivery({"date": str(target_date.date()), "delivered_at": dt.datetime.now(dt.timezone.utc).isoformat()})
+
+
+def _alert_failure(exc: Exception, dry_run: bool) -> None:
+    if not dry_run:
+        dispatch.send(f"Agent 1 failed ({type(exc).__name__}). See Actions diagnostics.",
+                      subject="Agent 1 FAILED")
+
+
 def run(dry_run: bool = False, force: bool = False) -> str:
     import datetime as _dt
     _now_ist = _dt.datetime.utcnow() + _dt.timedelta(hours=5, minutes=30)
@@ -179,7 +192,7 @@ def run(dry_run: bool = False, force: bool = False) -> str:
     # trigger ran at 9:22), skip so a late GitHub-scheduled run can't re-send a stale report.
     # --force bypasses it for manual testing.
     if not dry_run and not force:
-        _existing = read_jsonl(PREDICTIONS)
+        _existing = read_jsonl(DELIVERIES)
         if not _existing.empty and str(target_date.date()) in set(_existing["date"]):
             print(f"[Agent 1] {target_date.date()} already reported — skipping (backup run). "
                   f"Use --force to re-send.")
@@ -300,7 +313,7 @@ def run(dry_run: bool = False, force: bool = False) -> str:
 
     # --- deliver ---
     if not dry_run and dispatch.is_configured():
-        dispatch.send(report, subject=f"NIFTY Pre-Market Outlook — {target_date.date()}")
+        _deliver_report(report, target_date)
     elif not dry_run:
         print("[no delivery channel configured — printing only]")
     print("\n" + report)
@@ -322,7 +335,7 @@ if __name__ == "__main__":
     except Exception as exc:
         # Never fail silently — alert so a missing morning report is noticed.
         try:
-            dispatch.send(f"{type(exc).__name__}: {str(exc)[:300]}", subject="⚠️ Agent 1 FAILED")
+            _alert_failure(exc, dry_run=args.dry_run)
         except Exception:
             pass
         raise

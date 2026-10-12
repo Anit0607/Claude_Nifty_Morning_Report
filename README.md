@@ -76,3 +76,42 @@ GitHub Actions run Agent 1 (`.github/workflows/agent1.yml`, ~09:20 IST) and Agen
 the repo. Add the four secrets above under **Settings → Secrets and variables → Actions**.
 During the testing phase, update `DHAN_ACCESS_TOKEN` each morning (it expires daily); a VPS
 with automated token refresh is the planned next step.
+
+
+## Recovering failed automation
+
+A successful "Commit prediction log" step does not confirm a prediction or delivery.
+If Agent 1 reports Dhan HTTP 401 / DH-901, Dhan rejected the client ID or token.
+If Refresh Dhan Token reports "Token already EXPIRED", it cannot renew that token.
+The repository owner must securely enter a fresh, matching Dhan-Web-generated token
+in the `DHAN_ACCESS_TOKEN` Actions secret; never paste it in chat or logs.
+Before enabling renewal, verify `GH_SECRETS_TOKEN` is authorized for this repository
+with Actions Secrets read/write permission. Do not use a production renewal as a
+permission test. Renewal invalidates the old token; a public-key preflight validates
+read access and encryption setup, but cannot guarantee the later secret write will work.
+An outage or denied write after renewal still requires secure owner recovery.
+
+Renewal now requires `GITHUB_REPOSITORY` and `GH_TOKEN` even locally, and never prints
+the replacement token. `--check` only checks expiry and never sends failure alerts.
+Agent 1 `--dry-run` also never sends failure alerts, but still uses live data unless
+its data dependencies are mocked.
+
+Delivery is successful only when at least one configured channel acknowledges it.
+`data/logs/deliveries.jsonl` records successful morning deliveries separately from
+predictions. A failed delivery remains retryable. Existing prediction rows are not
+proof of delivery and do not suppress the first run after this change; that run may
+resend a previously delivered session. Partial channel success suppresses an automatic
+whole-report retry; use the existing `--force` option only after checking receipt.
+A timeout can mean a message arrived without an acknowledgement, so retries can duplicate
+messages. No exactly-once guarantee is possible across an external send and Git commit.
+
+Offline regression checks (no credentials needed):
+
+```bash
+python -m unittest scripts.test_automation_recovery -v
+python -m scripts.smoke_test
+```
+
+After reviewing and merging the repair, credential entry and a supervised production
+validation need owner approval. Verify actual report receipt and persisted delivery
+receipt, then a later scheduled refresh and predictor run before calling recovery complete.

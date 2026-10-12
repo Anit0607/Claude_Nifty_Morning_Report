@@ -52,10 +52,10 @@ def _send_chunk(url: str, chat_id: str, chunk: str) -> bool:
                 last = f"HTTP {r.status_code}"
                 time.sleep(2 * (attempt + 1))
                 continue
-            print(f"[telegram] non-retryable HTTP {r.status_code}: {r.text[:200]}")
+            print(f"[telegram] non-retryable HTTP {r.status_code}")
             return False
         except requests.exceptions.RequestException as exc:
-            last = exc  # timeouts, connection errors -> retry (message may have gone through)
+            last = type(exc).__name__  # request exceptions can contain the bot token in the URL
             time.sleep(2 * (attempt + 1))
     print(f"[telegram] gave up after {_RETRIES} attempts: {last}")
     return False
