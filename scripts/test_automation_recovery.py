@@ -66,6 +66,42 @@ class RecoveryTests(unittest.TestCase):
             with self.assertRaises(RuntimeError) as error: refresh.update_github_secret('NAME', 'PRIVATE-REPLACEMENT', 'owner/repo', 'fake', key)
             self.assertNotIn('PRIVATE-REPLACEMENT', str(error.exception))
 
+    def key(self):
+        private = public.PrivateKey.generate()
+        return {'key': private.public_key.encode(encoding.Base64Encoder()).decode(), 'key_id': 'test-id'}
+
+    def test_transient_write_retries_same_payload_and_renews_once(self):
+        import requests
+        responses = [requests.Timeout('PRIVATE-TOKEN'), Mock(status_code=429), Mock(status_code=503), Mock(status_code=204)]
+        with self.env(), patch.object(refresh, 'github_public_key', return_value=self.key()), patch.object(refresh, 'renew', return_value='PRIVATE-REPLACEMENT') as renew, patch.object(refresh.requests, 'put', side_effect=responses) as put, patch.object(refresh.time, 'sleep') as sleep, contextlib.redirect_stdout(io.StringIO()) as output:
+            refresh.main()
+            renew.assert_called_once()
+            self.assertEqual(put.call_count, 4)
+            payloads = [call.kwargs['json'] for call in put.call_args_list]
+            self.assertTrue(all(payload == payloads[0] for payload in payloads))
+            self.assertEqual([call.args[0] for call in sleep.call_args_list], [2, 4, 8])
+            self.assertNotIn('PRIVATE', output.getvalue())
+
+    def test_exhausted_write_retries_are_bounded_and_redacted(self):
+        import requests
+        for response in (requests.Timeout('PRIVATE-TOKEN'), Mock(status_code=500, text='PRIVATE-TOKEN')):
+            with self.subTest(response=type(response).__name__), patch.object(refresh.requests, 'put', side_effect=[response] * 4) as put, patch.object(refresh.time, 'sleep') as sleep:
+                with self.assertRaisesRegex(RuntimeError, 'not confirmed') as error:
+                    refresh.update_github_secret('NAME', 'PRIVATE-REPLACEMENT', 'owner/repo', 'fake', self.key())
+                self.assertEqual(put.call_count, 4)
+                self.assertEqual(sleep.call_count, 3)
+                self.assertNotIn('PRIVATE', str(error.exception))
+                self.assertTrue(error.exception.__suppress_context__)
+
+    def test_nonretryable_write_stops_without_sleep(self):
+        for status in (400, 401, 403, 404, 422):
+            with self.subTest(status=status), patch.object(refresh.requests, 'put', return_value=Mock(status_code=status, text='PRIVATE')) as put, patch.object(refresh.time, 'sleep') as sleep:
+                with self.assertRaisesRegex(RuntimeError, str(status)) as error:
+                    refresh.update_github_secret('NAME', 'PRIVATE-REPLACEMENT', 'owner/repo', 'fake', self.key())
+                put.assert_called_once()
+                sleep.assert_not_called()
+                self.assertNotIn('PRIVATE', str(error.exception))
+
     def test_dispatch_false_and_fallback(self):
         bad, good = Mock(), Mock()
         bad.is_configured.return_value = good.is_configured.return_value = True

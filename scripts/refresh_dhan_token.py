@@ -26,6 +26,7 @@ import base64
 import datetime as dt
 import json
 import sys
+import time
 
 import requests
 
@@ -90,12 +91,29 @@ def update_github_secret(name: str, value: str, repo: str, gh_token: str,
         public.PublicKey(key_data["key"].encode(), encoding.Base64Encoder())
     ).encrypt(value.encode())
 
-    put = requests.put(
-        f"https://api.github.com/repos/{repo}/actions/secrets/{name}", headers=headers, timeout=30,
-        json={"encrypted_value": base64.b64encode(sealed).decode(), "key_id": key_data["key_id"]})
-    if put.status_code not in (201, 204):
-        raise RuntimeError(f"secret update failed: HTTP {put.status_code}; renewed token was not persisted. "
-                           "Owner must securely bootstrap a fresh Dhan token after fixing GitHub access.")
+    # Reuse the exact encrypted write: a timeout may occur after GitHub saved it.
+    # Never call Dhan renewal again to recover a persistence failure.
+    payload = {"encrypted_value": base64.b64encode(sealed).decode(), "key_id": key_data["key_id"]}
+    attempts = 4
+    for attempt in range(attempts):
+        try:
+            put = requests.put(
+                f"https://api.github.com/repos/{repo}/actions/secrets/{name}",
+                headers=headers, timeout=30, json=payload)
+        except requests.exceptions.RequestException as exc:
+            failure = type(exc).__name__  # never include request URLs, headers or bodies
+            retryable = True
+        else:
+            if put.status_code in (201, 204):
+                return
+            failure = f"HTTP {put.status_code}"
+            retryable = put.status_code == 429 or 500 <= put.status_code <= 599
+        if not retryable or attempt == attempts - 1:
+            break
+        time.sleep(2 ** (attempt + 1))
+    raise RuntimeError(
+        f"secret update not confirmed: {failure}. "
+        "Owner must verify GitHub access and securely bootstrap a fresh Dhan token if needed.") from None
 
 
 def main(check: bool = False) -> None:

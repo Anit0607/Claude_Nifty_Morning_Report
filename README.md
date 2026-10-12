@@ -89,7 +89,9 @@ Before enabling renewal, verify `GH_SECRETS_TOKEN` is authorized for this reposi
 with Actions Secrets read/write permission. Do not use a production renewal as a
 permission test. Renewal invalidates the old token; a public-key preflight validates
 read access and encryption setup, but cannot guarantee the later secret write will work.
-An outage or denied write after renewal still requires secure owner recovery.
+Secret persistence retries the same encrypted replacement up to four times on transport errors,
+HTTP 429 or 5xx (2/4/8 second backoff), without renewing Dhan again. An exhausted or denied
+write still requires owner verification and secure recovery; a timeout can occur after a save.
 
 Renewal now requires `GITHUB_REPOSITORY` and `GH_TOKEN` even locally, and never prints
 the replacement token. `--check` only checks expiry and never sends failure alerts.
