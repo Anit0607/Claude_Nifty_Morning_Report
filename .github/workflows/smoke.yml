@@ -21,3 +21,6 @@ jobs:
         run: pip install -r requirements.txt
       - name: Run smoke test
         run: python -m scripts.smoke_test
+
+      - name: Test automation recovery (offline)
+        run: python -m unittest scripts.test_automation_recovery -v

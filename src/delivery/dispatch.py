@@ -24,11 +24,13 @@ def send(body: str, subject: str = "NIFTY Quant Report") -> bool:
         if not channel.is_configured():
             continue
         try:
-            channel.send(subject, body)
-            sent = True
-            print(f"[delivery] sent via {name}")
+            if channel.send(subject, body):
+                sent = True
+                print(f"[delivery] sent via {name}")
+            else:
+                print(f"[delivery] {name} did not acknowledge delivery")
         except Exception as exc:
-            print(f"[delivery] {name} failed: {str(exc)[:150]}")
+            print(f"[delivery] {name} failed: {type(exc).__name__}")
     if not sent:
         print("[delivery] no channel configured (or all failed)")
     return sent
