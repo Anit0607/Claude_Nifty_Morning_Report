@@ -16,6 +16,7 @@ import pandas as pd
 
 from src.config import project_path
 
+DELIVERIES = project_path("data", "logs", "deliveries.jsonl")
 PREDICTIONS = project_path("data", "logs", "predictions.jsonl")
 OUTCOMES = project_path("data", "logs", "outcomes.jsonl")
 METRICS = project_path("data", "logs", "metrics.jsonl")
@@ -54,3 +55,7 @@ def log_metrics(record: dict) -> None:
 
 def log_trade(record: dict) -> None:
     append_jsonl(TRADES, record)
+
+
+def log_delivery(record: dict) -> None:
+    append_jsonl(DELIVERIES, record)
